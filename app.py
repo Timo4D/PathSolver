@@ -1,6 +1,4 @@
 from shiny import App, render, ui
-import matplotlib.pyplot as plt
-import numpy as np
 from plot import create_plot
 
 example_page =  ui.page_fluid(
