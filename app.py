@@ -1,8 +1,6 @@
-from contourpy.util.data import simple
 from shiny import App, render, ui
-from plot import create_plot
-from simple_graph import create_graph
-import networkx as nx
+from modules.plot import create_plot
+from modules.simple_graph import create_graph
 
 example_page = ui.page_fluid(
     ui.panel_title("Djikstra Shiny!"),

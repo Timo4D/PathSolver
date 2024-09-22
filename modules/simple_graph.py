@@ -17,7 +17,7 @@ def create_graph():
         G.add_edge(u, v, weight=d)
 
     # Get positions for the nodes in a circular layout
-    pos = nx.spring_layout(G)
+    pos = nx.spring_layout(G, seed=1)
 
     # Draw the nodes and edges
     plt.figure(figsize=(8, 8))
