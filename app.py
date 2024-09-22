@@ -28,6 +28,8 @@ app_ui = ui.page_navbar(
 
 
 def server(input, output, session):
+    graph_data = {"graph": None}
+
     @render.plot
     def plot():
         return create_plot()
@@ -40,10 +42,24 @@ def server(input, output, session):
     @output
     @render.plot
     def graph_plot():
-        return draw_random_graph(generate_random_graph(
-            input.n_slider(),
-            input.k_slider(),
-            input.p_slider())
+        if (graph_data["graph"] is None
+                or input.n_slider() != graph_data.get("n")
+                or input.k_slider() != graph_data.get("k")
+                or input.p_slider() != graph_data.get("p")):
+            graph_data["graph"] = generate_random_graph(
+                input.n_slider(),
+                input.k_slider(),
+                input.p_slider(),
+            )
+            graph_data["n"] = input.n_slider()
+            graph_data["k"] = input.k_slider()
+            graph_data["p"] = input.p_slider()
+
+        draw_random_graph(
+            graph_data["graph"],
+            input.start_node(),
+            input.target_node(),
+            input.layout_seed()
         )
 
     @render.text
