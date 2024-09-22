@@ -1,7 +1,6 @@
 import networkx as nx
 import matplotlib.pyplot as plt
 
-
 def create_graph():
     # Define the edges with distances
     edges = [

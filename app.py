@@ -1,6 +1,7 @@
 from shiny import App, render, ui
 from modules.plot import create_plot
 from modules.simple_graph import create_graph
+from modules.graph_ui import graph_ui
 
 example_page = ui.page_fluid(
     ui.panel_title("Djikstra Shiny!"),
@@ -17,9 +18,9 @@ simple_graph = ui.page_fluid(
 )
 
 app_ui = ui.page_navbar(
-    ui.nav_panel("Startseite", simple_graph),
+    ui.nav_panel("Startseite", graph_ui()),
     ui.nav_panel("Über den Algorithmus", simple_plot),
-    ui.nav_panel("Über das Projekt", "Page Über das Projekt"),
+    ui.nav_panel("Über das Projekt", simple_graph),
     title="Djikstra",
     id="navbar"
 )
@@ -33,6 +34,11 @@ def server(input, output, session):
     @output
     @render.plot
     def graph():
+        return create_graph()
+
+    @output
+    @render.plot
+    def graph_plot():
         return create_graph()
 
     @render.text
