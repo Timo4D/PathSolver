@@ -1,3 +1,4 @@
+import networkx as nx
 from shiny import App, render, ui
 
 from modules.graph_ui import graph_ui, draw_random_graph, generate_random_graph
@@ -28,7 +29,10 @@ app_ui = ui.page_navbar(
 
 
 def server(input, output, session):
-    graph_data = {"graph": None}
+    graph_data = {
+        "graph": None,
+        "layout_seed": None,
+    }
 
     @render.plot
     def plot():
@@ -42,6 +46,7 @@ def server(input, output, session):
     @output
     @render.plot
     def graph_plot():
+        redo_layout = False
         if (graph_data["graph"] is None
                 or input.n_slider() != graph_data.get("n")
                 or input.k_slider() != graph_data.get("k")
@@ -54,17 +59,20 @@ def server(input, output, session):
             graph_data["n"] = input.n_slider()
             graph_data["k"] = input.k_slider()
             graph_data["p"] = input.p_slider()
+            redo_layout = True
+
+        if (graph_data["layout_seed"] is None
+                or input.layout_seed() != graph_data["layout_seed"]
+                or redo_layout):
+            graph_data["pos"] = nx.spring_layout(graph_data["graph"], seed=input.layout_seed())
+            graph_data["layout_seed"] = input.layout_seed()
 
         draw_random_graph(
             graph_data["graph"],
+            graph_data["pos"],
             input.start_node(),
             input.target_node(),
-            input.layout_seed()
         )
-
-    @render.text
-    def txt():
-        return f"n*2 is {input.n() * 2}"
 
 
 app = App(app_ui, server)
