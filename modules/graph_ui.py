@@ -3,6 +3,8 @@ from enum import Enum
 import networkx as nx
 from shiny import ui, render
 
+from modules.djikstra_explanation import djikstra_explanation
+
 
 class GraphType(Enum):
     RANDOM_GRAPH = "random_graph"
@@ -24,7 +26,8 @@ def graph_ui():
                 ui.input_numeric("target_node", "Target Node", value=2),
                 ui.input_numeric("layout_seed", "Layout Seed", value=1),
             ),
-            ui.output_ui("display_graph")
+            ui.output_ui("display_graph"),
+            djikstra_explanation
         ),
     )
 
@@ -40,11 +43,11 @@ def draw_graph(G, pos, start, target, weights=None):
     color_map = []
     for node in G:
         if node == start:
-            color_map.append('green')
+            color_map.append('tab:green')
         elif node == target:
-            color_map.append('red')
+            color_map.append('tab:red')
         else:
-            color_map.append('blue')
+            color_map.append('tab:blue')
 
     nx.draw_networkx_edges(G, pos)
     nx.draw_networkx_nodes(G, pos, node_color=color_map)
