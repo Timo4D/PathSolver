@@ -1,9 +1,12 @@
 from enum import Enum
 
 import networkx as nx
-from shiny import ui, render
+import pandas as pd
+from shiny import ui, render, reactive
 
 from modules.djikstra_explanation import djikstra_explanation
+
+distances_df = reactive.Value(pd.DataFrame(columns=["Node", "Distance"]))
 
 
 class GraphType(Enum):
@@ -27,6 +30,7 @@ def graph_ui():
                 ui.input_numeric("layout_seed", "Layout Seed", value=1),
             ),
             ui.output_ui("display_graph"),
+            ui.output_data_frame("display_distances"),
             djikstra_explanation
         ),
     )
@@ -62,6 +66,16 @@ def graph_ui_server(input, output, session):
         "graph": nx.Graph(),
         "layout_seed": None,
     }
+
+    def update_distances_df(graph, start_node):
+        distances = nx.single_source_dijkstra_path_length(graph, start_node)
+        df = pd.DataFrame(list(distances.items()), columns=["Node", "Distance"])
+        distances_df.set(df)
+
+    @output
+    @render.data_frame
+    def display_distances():
+        return distances_df.get()
 
     @output
     @render.ui
@@ -104,6 +118,7 @@ def graph_ui_server(input, output, session):
             input.target_node(),
         )
         label_pos = {node: (coords[0], coords[1] - 0.12) for node, coords in pos.items()}
+        update_distances_df(G, input.start_node())
         nx.draw_networkx_labels(G, label_pos, labels=node_labels)
 
     @output
@@ -136,3 +151,4 @@ def graph_ui_server(input, output, session):
             input.start_node(),
             input.target_node(),
         )
+        update_distances_df(graph_data["graph"], input.start_node())
