@@ -8,6 +8,7 @@ class GraphType(Enum):
     RANDOM_GRAPH = "random_graph"
     KOOT_EXAMPLE_DEUTSCHLAND = "koot_example_deutschland"
 
+
 def graph_ui():
     return ui.page_fluid(
         ui.layout_sidebar(
@@ -83,6 +84,11 @@ def graph_ui_server(input, output, session):
             (2, 4, 292), (3, 5, 99), (3, 7, 112), (4, 6, 270), (5, 7, 151)
         ]
 
+        node_labels = {
+            0: "Berlin", 1: "Bremen", 2: "Düsseldorf", 3: "Hamburg",
+            4: "Hannover", 5: "Kiel", 6: "Potsdam", 7: "Schwerin"
+        }
+
         G = nx.Graph()
         for u, v, d in edges:
             G.add_edge(u, v, weight=d)
@@ -94,7 +100,8 @@ def graph_ui_server(input, output, session):
             input.start_node(),
             input.target_node(),
         )
-
+        label_pos = {node: (coords[0], coords[1] - 0.12) for node, coords in pos.items()}
+        nx.draw_networkx_labels(G, label_pos, labels=node_labels)
 
     @output
     @render.plot
