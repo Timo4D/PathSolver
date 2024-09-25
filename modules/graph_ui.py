@@ -61,16 +61,29 @@ def draw_graph(G, pos, start, target, weights=None):
     nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
 
 
+def update_distances_df(graph, start_node, node_labels=None):
+    if node_labels:
+        nodes = list(node_labels.values())
+        df = pd.DataFrame(index=nodes, columns=nodes)
+        df.index.name = "City"
+
+        # Reset the index to include it as a column
+        df.reset_index(inplace=True)
+    else:
+        nodes = [str(node) for node in graph.nodes]
+        df = pd.DataFrame(index=nodes, columns=nodes)
+        df.index.name = "Node"
+        df.reset_index(inplace=True)
+
+    print(df)
+    distances_df.set(df)
+
+
 def graph_ui_server(input, output, session):
     graph_data = {
         "graph": nx.Graph(),
         "layout_seed": None,
     }
-
-    def update_distances_df(graph, start_node):
-        distances = nx.single_source_dijkstra_path_length(graph, start_node)
-        df = pd.DataFrame(list(distances.items()), columns=["Node", "Distance"])
-        distances_df.set(df)
 
     @output
     @render.data_frame
@@ -118,7 +131,7 @@ def graph_ui_server(input, output, session):
             input.target_node(),
         )
         label_pos = {node: (coords[0], coords[1] - 0.12) for node, coords in pos.items()}
-        update_distances_df(G, input.start_node())
+        update_distances_df(G, input.start_node(), node_labels)
         nx.draw_networkx_labels(G, label_pos, labels=node_labels)
 
     @output
