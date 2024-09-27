@@ -1,3 +1,4 @@
+import random
 from enum import Enum
 
 import networkx as nx
@@ -6,7 +7,9 @@ from shiny import ui, render, reactive
 
 from modules.djikstra_explanation import djikstra_explanation
 
-distances_df = reactive.Value(pd.DataFrame(columns=["Node", "Distance"]))
+distances_df = reactive.Value(pd.DataFrame())
+graph = reactive.Value(nx.Graph())
+seed = reactive.Value(1)
 
 
 class GraphType(Enum):
@@ -22,93 +25,51 @@ def graph_ui():
                     "selectize_graph",
                     "Select a Graph",
                     {GraphType.RANDOM_GRAPH.value: "Random Graph",
-                     GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Deutschland Beispiel"}
+                     GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Deutschland Beispiel"},
+                    selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
                 ),
                 ui.output_ui("random_graph_sliders"),
-                ui.input_numeric("start_node", "Start Node", value=1),
-                ui.input_numeric("target_node", "Target Node", value=2),
+                ui.input_numeric("start_node", "Start Node", value=0),
+                ui.input_numeric("target_node", "Target Node", value=1),
                 ui.input_numeric("layout_seed", "Layout Seed", value=1),
             ),
-            ui.output_ui("display_graph"),
+            ui.output_plot("graph_plot"),
             ui.output_data_frame("display_distances"),
             djikstra_explanation
         ),
     )
 
 
-def generate_random_graph(n, k, p):
-    G = nx.connected_watts_strogatz_graph(n, k, p)
-    return G
-
-
-def draw_graph(G, pos, start, target, weights=None):
-    nx.draw_networkx_labels(G, pos)
-
-    color_map = []
-    for node in G:
-        if node == start:
-            color_map.append('tab:green')
-        elif node == target:
-            color_map.append('tab:red')
-        else:
-            color_map.append('tab:blue')
-
-    nx.draw_networkx_edges(G, pos)
-    nx.draw_networkx_nodes(G, pos, node_color=color_map)
-    edge_labels = nx.get_edge_attributes(G, 'weight')
-
-    # Draw the weight of the edges
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
-
-
-def update_distances_df(graph, start_node, node_labels=None):
-    if node_labels:
-        nodes = list(node_labels.values())
-        df = pd.DataFrame(index=nodes, columns=nodes)
-        df.index.name = "City"
-
-        # Reset the index to include it as a column
-        df.reset_index(inplace=True)
-    else:
-        nodes = [str(node) for node in graph.nodes]
-        df = pd.DataFrame(index=nodes, columns=nodes)
-        df.index.name = "Node"
-        df.reset_index(inplace=True)
-
-    print(df)
-    distances_df.set(df)
-
-
 def graph_ui_server(input, output, session):
-    graph_data = {
-        "graph": nx.Graph(),
-        "layout_seed": None,
-    }
-
     @output
     @render.data_frame
     def display_distances():
-        return distances_df.get()
+        return None
 
-    @output
-    @render.ui
-    def display_graph():
-        """Controls which graph is shown."""
-        return ui.output_plot(input.selectize_graph())
-
-    @output
-    @render.ui
-    def random_graph_sliders():
+    @reactive.Effect
+    def update_graph():
         if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
-            return ui.TagList(
-                ui.input_slider("n_slider", "Number of Nodes", 1, 30, 8),
-                ui.input_slider("k_slider", "K", 2, 5, 3),
-                ui.input_slider("p_slider", "P", 0, 1, 0.5),
-            )
+            generate_random_graph()
+        elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
+            generate_koot_example()
 
-    @output
-    @render.plot
-    def koot_example_deutschland():
+    def generate_random_graph():
+        print("random")
+        n = input.n_slider()
+        k = input.k_slider()
+        p = input.p_slider()
+
+        G = nx.connected_watts_strogatz_graph(n, k, p)
+
+        # Add random integer weights to edges
+        for (u, v) in G.edges():
+            G[u][v]['weight'] = random.randint(1, 100)
+
+        graph.set(G)
+
+    def generate_koot_example():
+
+        print("koot")
         edges = [
             (0, 6, 35), (0, 7, 224), (1, 2, 291), (1, 3, 128), (1, 4, 137),
             (2, 4, 292), (3, 5, 99), (3, 7, 112), (4, 6, 270), (5, 7, 151)
@@ -123,45 +84,52 @@ def graph_ui_server(input, output, session):
         for u, v, d in edges:
             G.add_edge(u, v, weight=d)
 
-        pos = nx.spring_layout(G, seed=input.layout_seed())
-        draw_graph(
-            G,
-            pos,
-            input.start_node(),
-            input.target_node(),
-        )
-        label_pos = {node: (coords[0], coords[1] - 0.12) for node, coords in pos.items()}
-        update_distances_df(G, input.start_node(), node_labels)
-        nx.draw_networkx_labels(G, label_pos, labels=node_labels)
+        nx.set_node_attributes(G, node_labels, "label")
+        graph.set(G)
+
+    @output
+    @render.ui
+    def random_graph_sliders():
+        if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
+            return ui.TagList(
+                ui.input_slider("n_slider", "Number of Nodes", 1, 30, 8),
+                ui.input_slider("k_slider", "K", 2, 5, 3),
+                ui.input_slider("p_slider", "P", 0, 1, 0.5),
+            )
 
     @output
     @render.plot
-    def random_graph():
-        redo_layout = False
-        if (graph_data["graph"] is None
-                or input.n_slider() != graph_data.get("n")
-                or input.k_slider() != graph_data.get("k")
-                or input.p_slider() != graph_data.get("p")):
-            graph_data["graph"] = generate_random_graph(
-                input.n_slider(),
-                input.k_slider(),
-                input.p_slider(),
-            )
-            graph_data["n"] = input.n_slider()
-            graph_data["k"] = input.k_slider()
-            graph_data["p"] = input.p_slider()
-            redo_layout = True
+    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node)
+    def graph_plot():
+        G = graph.get()
+        if not G:
+            return None
 
-        if (graph_data["layout_seed"] is None
-                or input.layout_seed() != graph_data["layout_seed"]
-                or redo_layout):
-            graph_data["pos"] = nx.spring_layout(graph_data["graph"], seed=input.layout_seed())
-            graph_data["layout_seed"] = input.layout_seed()
+        pos = nx.spring_layout(G, seed=input.layout_seed())
 
-        draw_graph(
-            graph_data["graph"],
-            graph_data["pos"],
-            input.start_node(),
-            input.target_node(),
-        )
-        update_distances_df(graph_data["graph"], input.start_node())
+        # Draw Node Color
+        color_map = []
+        for node in G:
+            if node == input.start_node():
+                color_map.append('tab:green')
+            elif node == input.target_node():
+                color_map.append('tab:red')
+            else:
+                color_map.append('tab:blue')
+
+        nx.draw_networkx_edges(G, pos)
+        nx.draw_networkx_nodes(G, pos, node_color=color_map)
+
+        # Draw labels
+        if "label" in G.nodes[0]:
+            nx.draw_networkx_labels(G, pos)
+            labels = nx.get_node_attributes(G, "label")
+            label_pos = {node: (coords[0], coords[1] - 0.12) for node, coords in pos.items()}
+            nx.draw_networkx_labels(G, label_pos, labels)
+        else:
+            labels = {node: str(node) for node in G.nodes()}
+            nx.draw_networkx_labels(G, pos, labels)
+
+        # Draw weights
+        edge_labels = nx.get_edge_attributes(G, 'weight')
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
