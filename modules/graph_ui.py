@@ -34,6 +34,7 @@ def graph_ui():
                 ui.input_numeric("layout_seed", "Layout Seed", value=1),
             ),
             ui.output_plot("graph_plot"),
+            ui.output_data_frame("display_distances"),
             djikstra_explanation
         ),
     )
@@ -46,6 +47,29 @@ def graph_ui_server(input, output, session):
             generate_random_graph()
         elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
             generate_koot_example()
+
+    @output
+    @render.data_frame
+    def display_distances():
+        return distances_df.get()
+
+    @reactive.Effect
+    def update_distances():
+        G = graph.get()
+        if G:
+            if "label" in G.nodes[0]:
+                nodes = nx.get_node_attributes(G, "label").values()
+                index_name = "Cities"
+            else:
+                nodes = [str(node) for node in G.nodes]
+                index_name = "Node"
+
+            distance_matrix = pd.DataFrame(float('inf'), index=nodes, columns=nodes)
+            distance_matrix.index.name = index_name
+            distance_matrix.reset_index(inplace=True)
+            distances_df.set(distance_matrix)
+
+
 
     def generate_random_graph():
         print("random")
