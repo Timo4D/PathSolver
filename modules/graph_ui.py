@@ -10,6 +10,7 @@ from modules.djikstra_explanation import djikstra_explanation
 distances_df = reactive.Value(pd.DataFrame())
 graph = reactive.Value(nx.Graph())
 seed = reactive.Value(1)
+step_counter = reactive.Value(0)
 
 
 class GraphType(Enum):
@@ -33,6 +34,7 @@ def graph_ui():
                 ui.input_numeric("target_node", "Target Node", value=1, min=0),
                 ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
             ),
+            ui.input_action_button("next_step", "Next Step"),
             ui.output_plot("graph_plot"),
             ui.output_data_frame("display_distances"),
             djikstra_explanation
@@ -40,7 +42,46 @@ def graph_ui():
     )
 
 
+def reset_df():
+    print("reset_df")
+    G = graph.get()
+    if G:
+        if "label" in G.nodes[0]:
+            nodes = dict(sorted(nx.get_node_attributes(G, "label").items())).values()
+            index_name = "Cities"
+        else:
+            nodes = [str(node) for node in G.nodes]
+            index_name = "Node"
+
+        distance_matrix = pd.DataFrame(float('inf'), index=nodes, columns=nodes)
+        distance_matrix.index.name = index_name
+        distance_matrix.reset_index(inplace=True)
+        distances_df.set(distance_matrix)
+        step_counter.set(0)
+
+
+def init_df():
+    print("init df")
+    reset_df()
+
+
 def graph_ui_server(input, output, session):
+    @reactive.Effect
+    @reactive.event(input.next_step)
+    def next_step():
+        print("next step")
+        df = distances_df.get()
+        if not df.empty:
+            start_node = input.start_node()
+            if 0 <= start_node < len(df):
+                df.iloc[start_node, start_node + 1] = 1
+                distances_df.set(df)
+                print(f"Updated distance for node {start_node} to 1")
+                step_counter.set(step_counter.get() + 1)
+                # print(df)
+            else:
+                print(f"Invalid start node: {start_node}")
+
     @reactive.Effect
     def update_graph():
         if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
@@ -50,6 +91,7 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.data_frame
+    @reactive.event(distances_df, step_counter, input.start_node, input.target_node)
     def display_distances():
         df = distances_df.get()
         if df.empty or df.shape[1] < 2:
@@ -79,22 +121,16 @@ def graph_ui_server(input, output, session):
         )
 
     @reactive.Effect
-    def update_distances():
-        G = graph.get()
-        if G:
-            if "label" in G.nodes[0]:
-                nodes = dict(sorted(nx.get_node_attributes(G, "label").items())).values()
-                index_name = "Cities"
-            else:
-                nodes = [str(node) for node in G.nodes]
-                index_name = "Node"
-
-            distance_matrix = pd.DataFrame(float('inf'), index=nodes, columns=nodes)
-            distance_matrix.index.name = index_name
-            distance_matrix.reset_index(inplace=True)
-            distances_df.set(distance_matrix)
+    @reactive.event(input.target_node, input.start_node)
+    def reset_djikstra():
+        print("reset djikstra")
+        reset_df()
 
 
+    @reactive.Effect
+    def initialize_distances():
+        print("update distances")
+        init_df()
 
     def generate_random_graph():
         print("random")
