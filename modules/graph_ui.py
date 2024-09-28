@@ -29,9 +29,9 @@ def graph_ui():
                     selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
                 ),
                 ui.output_ui("random_graph_sliders"),
-                ui.input_numeric("start_node", "Start Node", value=0),
-                ui.input_numeric("target_node", "Target Node", value=1),
-                ui.input_numeric("layout_seed", "Layout Seed", value=1),
+                ui.input_numeric("start_node", "Start Node", value=0, min=0),
+                ui.input_numeric("target_node", "Target Node", value=1, min=0),
+                ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
             ),
             ui.output_plot("graph_plot"),
             ui.output_data_frame("display_distances"),
@@ -51,14 +51,39 @@ def graph_ui_server(input, output, session):
     @output
     @render.data_frame
     def display_distances():
-        return distances_df.get()
+        df = distances_df.get()
+        if df.empty or df.shape[1] < 2:
+            return render.DataGrid(df)
+
+        return render.DataGrid(
+            df,
+            styles=[
+                # Bold the first column
+                {
+                    "cols": [0],
+                    "style": {"font-weight": "bold"},
+                },
+                # Highlight start node green
+                {
+                    "rows": [input.start_node()],
+                    "cols": [input.start_node() + 1],
+                    "style": {"background-color": "#2ca02c"},
+                },
+                # Highlight target node red
+                {
+                    "rows": [input.target_node()],
+                    "cols": [input.target_node() + 1],
+                    "style": {"background-color": "#d62728"},
+                },
+            ]
+        )
 
     @reactive.Effect
     def update_distances():
         G = graph.get()
         if G:
             if "label" in G.nodes[0]:
-                nodes = nx.get_node_attributes(G, "label").values()
+                nodes = dict(sorted(nx.get_node_attributes(G, "label").items())).values()
                 index_name = "Cities"
             else:
                 nodes = [str(node) for node in G.nodes]
@@ -110,7 +135,7 @@ def graph_ui_server(input, output, session):
     def random_graph_sliders():
         if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
             return ui.TagList(
-                ui.input_slider("n_slider", "Number of Nodes", 1, 30, 8),
+                ui.input_slider("n_slider", "Number of Nodes", 2, 30, 8),
                 ui.input_slider("k_slider", "K", 2, 5, 3),
                 ui.input_slider("p_slider", "P", 0, 1, 0.5),
             )
@@ -141,7 +166,7 @@ def graph_ui_server(input, output, session):
         # Draw labels
         if "label" in G.nodes[0]:
             nx.draw_networkx_labels(G, pos)
-            labels = nx.get_node_attributes(G, "label")
+            labels = dict(sorted(nx.get_node_attributes(G, "label").items()))
             label_pos = {node: (coords[0], coords[1] - 0.12) for node, coords in pos.items()}
             nx.draw_networkx_labels(G, label_pos, labels)
         else:
