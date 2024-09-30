@@ -2,3 +2,4 @@ shiny
 matplotlib
 scipy
 networkx
+pandas

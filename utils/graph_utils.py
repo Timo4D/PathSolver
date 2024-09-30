@@ -1,24 +1,40 @@
 import networkx as nx
 
 
-def plot_graph(G, start, target, seed):
+def plot_graph(G, start, target, seed, current_node=None, current_edge=None):
     if not G:
         return None
 
     pos = nx.spring_layout(G, seed=seed)
 
     # Draw Node Color
-    color_map = []
+    node_color_map = []
     for node in G:
         if node == start:
-            color_map.append('tab:green')
+            node_color_map.append('tab:green')
         elif node == target:
-            color_map.append('tab:red')
+            node_color_map.append('tab:red')
+        elif node == current_node:
+            print("Color current", current_node)
+            node_color_map.append('tab:pink')
         else:
-            color_map.append('tab:blue')
+            node_color_map.append('tab:blue')
 
-    nx.draw_networkx_edges(G, pos)
-    nx.draw_networkx_nodes(G, pos, node_color=color_map)
+    print("current edge", current_edge)
+
+    if current_edge:
+        edge_color_map = []
+        for edge in G.edges:
+            if sorted(edge) == sorted(current_edge):
+                edge_color_map.append('tab:red')
+            else:
+                edge_color_map.append('black')
+
+        nx.draw_networkx_edges(G, pos, edge_color=edge_color_map)
+    else:
+        nx.draw_networkx_edges(G, pos)
+
+    nx.draw_networkx_nodes(G, pos, node_color=node_color_map)
 
     # Draw labels
     if "label" in G.nodes[0]:

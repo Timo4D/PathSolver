@@ -12,6 +12,10 @@ distances_df = reactive.Value(pd.DataFrame())
 graph = reactive.Value(nx.Graph())
 seed = reactive.Value(1)
 step_counter = reactive.Value(0)
+step_explanation = reactive.Value("Here will be the explanations of every step")
+current_node = reactive.Value(None)
+current_edge = reactive.Value(None)
+distance = reactive.Value(0)
 
 
 class GraphType(Enum):
@@ -36,6 +40,7 @@ def graph_ui():
                 ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
             ),
             ui.input_action_button("next_step", "Next Step"),
+            ui.output_text("explain"),
             ui.output_plot("graph_plot"),
             ui.output_data_frame("display_distances"),
             djikstra_explanation
@@ -67,21 +72,69 @@ def init_df():
 
 
 def graph_ui_server(input, output, session):
+    @output
+    @render.text
+    def explain():
+        return step_explanation.get()
+
     @reactive.Effect
     @reactive.event(input.next_step)
     def next_step():
         print("next step")
         df = distances_df.get()
-        if not df.empty:
-            start_node = input.start_node()
-            if 0 <= start_node < len(df):
-                df.iloc[start_node, start_node + 1] = 0
-                distances_df.set(df)
-                print(f"Updated distance for node {start_node} to 1")
-                step_counter.set(step_counter.get() + 1)
-                # print(df)
+        step = step_counter.get()
+        print(step)
+        if step == 0:
+            print("Step 1: Set distance to start node to 0")
+            step_explanation.set("Step 1: Set distance to start node to 0")
+            if not df.empty:
+                start_node = input.start_node()
+                if 0 <= start_node < len(df):
+                    print(start_node, start_node)
+                    df.iloc[start_node, start_node + 1] = 0
+                    distances_df.set(df)
+                    print(f"Updated distance for node {start_node} to 0")
+                    current_node.set(start_node)
+                    step_counter.set(step + 1)
+                else:
+                    print(f"Invalid start node: {start_node}")
+        elif step == 1:
+            G = graph.get()
+            neighbors = []
+            for n in G.neighbors(current_node.get()):
+                neighbors.append({"node": n, "weight": G[n][current_node.get()]['weight']})
+
+            print(neighbors)
+            min_neighbor = min(neighbors, key=lambda x: x['weight'])
+            distance.set(distance.get() + min_neighbor['weight'])
+            print(min_neighbor)
+            edge = (current_node.get(), min_neighbor['node'])
+            current_node.set(min_neighbor['node'])
+            current_edge.set(edge)
+
+            df.iloc[current_node.get(), min_neighbor['node'] + 1] = distance.get()
+            distances_df.set(df.copy())
+
+            step_explanation.set(
+                f"Step 2: Now lets look at the available paths and select the shortest to get to the next node"
+                f"That is Node {min_neighbor['node']} with a weight of "
+                f"{min_neighbor['weight']}. "
+                "So lets put that in the dataframe"
+            )
+
+            step_counter.set(step_counter.get() + 1)
+
+        elif step == 2:
+            print("Check if the current node is the target node, if not repeat step 2")
+            if current_node.get() == input.target_node():
+                step_explanation.set(
+                    "Lets check if we have arrived at the target node. We are! That means we are done!")
             else:
-                print(f"Invalid start node: {start_node}")
+                step_explanation.set(
+                    "Lets check if we have arrived at the target node. We are not at the target node yet, so lets continue")
+                step_counter.set(step_counter.get() - 1)
+
+
 
     @reactive.Effect
     def update_graph():
@@ -147,6 +200,9 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.plot
-    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node)
+    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node, current_node,
+                    current_edge)
     def graph_plot():
-        plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed())
+        print("update graph")
+        plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), current_node.get(),
+                   current_edge.get())
