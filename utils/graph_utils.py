@@ -1,7 +1,9 @@
 import networkx as nx
 
 
-def plot_graph(G, start, target, seed, current_node=None, current_edge=None):
+def plot_graph(G, start, target, seed, current_node=None, current_edges=None):
+    if current_edges is None:
+        current_edges = []
     if not G:
         return None
 
@@ -15,17 +17,17 @@ def plot_graph(G, start, target, seed, current_node=None, current_edge=None):
         elif node == target:
             node_color_map.append('tab:red')
         elif node == current_node:
-            print("Color current", current_node)
             node_color_map.append('tab:pink')
         else:
             node_color_map.append('tab:blue')
 
-    print("current edge", current_edge)
+    print("current edge", current_edges)
 
-    if current_edge:
+    if current_edges:
+        print(current_edges)
         edge_color_map = []
         for edge in G.edges:
-            if sorted(edge) == sorted(current_edge):
+            if sorted(edge) in current_edges:
                 edge_color_map.append('tab:red')
             else:
                 edge_color_map.append('black')

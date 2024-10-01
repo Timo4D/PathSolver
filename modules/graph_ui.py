@@ -14,8 +14,10 @@ seed = reactive.Value(1)
 step_counter = reactive.Value(0)
 step_explanation = reactive.Value("Here will be the explanations of every step")
 current_node = reactive.Value(None)
-current_edge = reactive.Value(None)
+current_edges = reactive.Value([])
 distance = reactive.Value(0)
+nodes_visited = reactive.Value([])
+prev_node = reactive.Value(None)
 
 
 class GraphType(Enum):
@@ -42,6 +44,7 @@ def graph_ui():
             ui.input_action_button("next_step", "Next Step"),
             ui.output_text("explain"),
             ui.output_plot("graph_plot"),
+            ui.output_text("visited_nodes"),
             ui.output_data_frame("display_distances"),
             djikstra_explanation
         ),
@@ -59,11 +62,15 @@ def reset_df():
             nodes = [str(node) for node in G.nodes]
             index_name = "Node"
 
-        distance_matrix = pd.DataFrame(float('inf'), index=nodes, columns=nodes)
+        distance_matrix = pd.DataFrame(index=nodes, columns=["Cost", "Previous"])
+        distance_matrix["Cost"] = float('inf')
+
         distance_matrix.index.name = index_name
         distance_matrix.reset_index(inplace=True)
         distances_df.set(distance_matrix)
         step_counter.set(0)
+        nodes_visited.set([])
+        current_edges.set([])
 
 
 def init_df():
@@ -83,56 +90,111 @@ def graph_ui_server(input, output, session):
         print("next step")
         df = distances_df.get()
         step = step_counter.get()
+        G = graph.get()
+        neighbors = []
+        edges = []
         print(step)
         if step == 0:
-            print("Step 1: Set distance to start node to 0")
             step_explanation.set("Step 1: Set distance to start node to 0")
             if not df.empty:
                 start_node = input.start_node()
                 if 0 <= start_node < len(df):
-                    print(start_node, start_node)
-                    df.iloc[start_node, start_node + 1] = 0
-                    distances_df.set(df)
+                    df.iloc[start_node, 1] = 0
+                    df.iloc[start_node, 2] = nx.get_node_attributes(G, "label")[start_node]
                     print(f"Updated distance for node {start_node} to 0")
+                    distances_df.set(df)
+                    prev_node.set(start_node)
+                    nodes_visited.get().append(start_node)
                     current_node.set(start_node)
                     step_counter.set(step + 1)
                 else:
                     print(f"Invalid start node: {start_node}")
         elif step == 1:
-            G = graph.get()
-            neighbors = []
             for n in G.neighbors(current_node.get()):
                 neighbors.append({"node": n, "weight": G[n][current_node.get()]['weight']})
 
-            print(neighbors)
-            min_neighbor = min(neighbors, key=lambda x: x['weight'])
-            distance.set(distance.get() + min_neighbor['weight'])
-            print(min_neighbor)
-            edge = (current_node.get(), min_neighbor['node'])
-            current_node.set(min_neighbor['node'])
-            current_edge.set(edge)
+                df.iloc[n, 1] = G[n][current_node.get()]['weight']
+                df.iloc[n, 2] = nx.get_node_attributes(G, "label")[prev_node.get()]
+                edges.append(sorted((n, prev_node.get())))
 
-            df.iloc[current_node.get(), min_neighbor['node'] + 1] = distance.get()
             distances_df.set(df.copy())
+            current_edges.set(current_edges.get() + edges)
 
             step_explanation.set(
-                f"Step 2: Now lets look at the available paths and select the shortest to get to the next node"
-                f"That is Node {min_neighbor['node']} with a weight of "
-                f"{min_neighbor['weight']}. "
-                "So lets put that in the dataframe"
+                f"Step 2: Now lets look at the available paths and and calculate their distances"
+                # f"That is Node {min_neighbor['node']} with a weight of "
+                # f"{min_neighbor['weight']}. "
+                # "So lets put that in the dataframe"
             )
 
             step_counter.set(step_counter.get() + 1)
 
         elif step == 2:
-            print("Check if the current node is the target node, if not repeat step 2")
+
+            current_edges.set([])
+
+            print("visited", nodes_visited.get())
+            unvisited_nodes = df[~df.index.isin(nodes_visited.get())]
+            min_cost_node = unvisited_nodes["Cost"].idxmin()
+            print("Node", min_cost_node)
+            current_node.set(min_cost_node)
+
+            step_explanation.set(
+                f"You can see that {min_cost_node} is the shortest path to the next node so lets make {current_node.get()} our new Node. "
+                f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again"
+            )
+            nodes_visited.get().append(current_node.get())
+            step_counter.set(step_counter.get() + 1)
+        elif step == 3:
+            prev_cost = df.iloc[current_node.get(), 1]
+
+            for n in G.neighbors(current_node.get()):
+                if n not in nodes_visited.get():
+                    print("weigt", df.iloc[n, 1])
+                    new_weight = G[n][current_node.get()]['weight'] + prev_cost
+
+                    neighbors.append({"node": n, "weight": (G[n][current_node.get()]['weight'] + prev_cost)})
+
+                    if new_weight < df.iloc[n, 1]:
+                        df.iloc[n, 1] = new_weight
+                        df.iloc[n, 2] = nx.get_node_attributes(G, "label")[current_node.get()]
+
+                    edges.append(sorted((n, current_node.get())))
+
+            print("edges", edges)
+            print("neibors", neighbors)
+
+            distances_df.set(df.copy())
+            current_edges.set(current_edges.get() + edges)
+
+            step_explanation.set(
+                "Lets again look at the possible neighbours that we have not visited yet."
+                "Lets get the cumulative distance to that node calculated and if its lower that wits in it already, put in the new lower cost and update its previous node"
+                "We will leave {} out as we have already visited"
+            )
+            step_counter.set(step_counter.get() + 1)
+        elif step == 4:
+            current_edges.set([])
+
+            print("visited", nodes_visited.get())
+            unvisited_nodes = df[~df.index.isin(nodes_visited.get())]
+            min_cost_node = unvisited_nodes["Cost"].idxmin()
+            print("Node", min_cost_node)
+            current_node.set(min_cost_node)
+
             if current_node.get() == input.target_node():
                 step_explanation.set(
-                    "Lets check if we have arrived at the target node. We are! That means we are done!")
+                    "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it"
+                )
             else:
                 step_explanation.set(
-                    "Lets check if we have arrived at the target node. We are not at the target node yet, so lets continue")
+                    f"You can see that {min_cost_node} is the shortest path to the next node so lets make {current_node.get()} our new Node. "
+                    f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again"
+                )
                 step_counter.set(step_counter.get() - 1)
+            nodes_visited.get().append(current_node.get())
+
+
 
 
 
@@ -162,13 +224,13 @@ def graph_ui_server(input, output, session):
                 # Highlight start node green
                 {
                     "rows": [input.start_node()],
-                    "cols": [input.start_node() + 1],
+                    "cols": [0],
                     "style": {"background-color": "#2ca02c"},
                 },
                 # Highlight target node red
                 {
                     "rows": [input.target_node()],
-                    "cols": [input.target_node() + 1],
+                    "cols": [0],
                     "style": {"background-color": "#d62728"},
                 },
             ]
@@ -180,13 +242,10 @@ def graph_ui_server(input, output, session):
         print("reset djikstra")
         reset_df()
 
-
     @reactive.Effect
     def initialize_distances():
         print("update distances")
         init_df()
-
-
 
     @output
     @render.ui
@@ -199,10 +258,15 @@ def graph_ui_server(input, output, session):
             )
 
     @output
+    @render.text
+    def visited_nodes():
+        return nodes_visited.get()
+
+    @output
     @render.plot
     @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node, current_node,
-                    current_edge)
+                    current_edges)
     def graph_plot():
         print("update graph")
         plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), current_node.get(),
-                   current_edge.get())
+                   current_edges.get())
