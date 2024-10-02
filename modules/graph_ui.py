@@ -17,6 +17,7 @@ current_node = reactive.Value(None)
 current_edges = reactive.Value([])
 distance = reactive.Value(0)
 nodes_visited = reactive.Value([])
+state_history = reactive.Value([])
 
 
 class GraphType(Enum):
@@ -40,7 +41,10 @@ def graph_ui():
                 ui.input_numeric("target_node", "Target Node", value=1, min=0),
                 ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
             ),
-            ui.input_action_button("next_step", "Next Step"),
+            ui.layout_column_wrap(
+                ui.input_action_button("prev_step", "Previous Step"),
+                ui.input_action_button("next_step", "Next Step"),
+            ),
             ui.output_text("explain"),
             ui.output_plot("graph_plot"),
             ui.output_data_frame("display_distances"),
@@ -48,6 +52,28 @@ def graph_ui():
         ),
     )
 
+
+def save_state():
+    state = {
+        "distances_df": distances_df.get().copy(),
+        "step_counter": step_counter.get(),
+        "nodes_visited": nodes_visited.get().copy(),
+        "current_edges": current_edges.get().copy(),
+        "current_node": current_node.get(),
+        "step_explanation": step_explanation.get()
+    }
+    state_history.get().append(state)
+
+
+def restore_state():
+    if state_history.get():
+        state = state_history.get().pop()
+        distances_df.set(state["distances_df"])
+        step_counter.set(state["step_counter"])
+        nodes_visited.set(state["nodes_visited"])
+        current_edges.set(state["current_edges"])
+        current_node.set(state["current_node"])
+        step_explanation.set(state["step_explanation"])
 
 def reset_df():
     print("reset_df")
@@ -84,8 +110,15 @@ def graph_ui_server(input, output, session):
         return step_explanation.get()
 
     @reactive.Effect
+    @reactive.event(input.prev_step)
+    def prev_step():
+        print("prev step")
+        restore_state()
+
+    @reactive.Effect
     @reactive.event(input.next_step)
     def next_step():
+        save_state()
         df = distances_df.get()
         step = step_counter.get()
         G = graph.get()
