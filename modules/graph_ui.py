@@ -5,7 +5,7 @@ import pandas as pd
 from shiny import ui, render, reactive
 
 from modules.djikstra_explanation import djikstra_explanation
-from utils.graph_generators import generate_random_graph, generate_koot_example
+from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
 from utils.graph_utils import plot_graph
 
 distances_df = reactive.Value(pd.DataFrame())
@@ -23,6 +23,7 @@ state_history = reactive.Value([])
 class GraphType(Enum):
     RANDOM_GRAPH = "random_graph"
     KOOT_EXAMPLE_DEUTSCHLAND = "koot_example_deutschland"
+    EDGE_LIST = "edge_list"
 
 
 def graph_ui():
@@ -33,10 +34,11 @@ def graph_ui():
                     "selectize_graph",
                     "Select a Graph",
                     {GraphType.RANDOM_GRAPH.value: "Random Graph",
-                     GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Deutschland Beispiel"},
+                     GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Deutschland Beispiel",
+                     GraphType.EDGE_LIST.value: "Import from Edgelist"},
                     selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
                 ),
-                ui.output_ui("random_graph_sliders"),
+                ui.output_ui("graph_generator_settings"),
                 ui.input_numeric("start_node", "Start Node", value=0, min=0),
                 ui.input_numeric("target_node", "Target Node", value=1, min=0),
                 ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
@@ -199,6 +201,8 @@ def graph_ui_server(input, output, session):
             graph.set(generate_random_graph(input.n_slider(), input.k_slider(), input.p_slider()))
         elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
             graph.set(generate_koot_example())
+        elif input.selectize_graph() == GraphType.EDGE_LIST.value:
+            graph.set(generate_from_edge_list(input.edge_list_input()))
 
     @output
     @render.data_frame
@@ -244,12 +248,16 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
-    def random_graph_sliders():
+    def graph_generator_settings():
         if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
             return ui.TagList(
                 ui.input_slider("n_slider", "Number of Nodes", 2, 30, 8),
                 ui.input_slider("k_slider", "K", 2, 5, 3),
                 ui.input_slider("p_slider", "P", 0, 1, 0.5),
+            )
+        if input.selectize_graph() == GraphType.EDGE_LIST.value:
+            return ui.TagList(
+                ui.input_text_area("edge_list_input", "Edge List", "(0,1),\n(1,2),\n(2,0)")
             )
 
     @output

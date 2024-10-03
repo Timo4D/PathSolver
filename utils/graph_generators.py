@@ -1,3 +1,4 @@
+import ast
 import random
 
 import networkx as nx
@@ -32,4 +33,18 @@ def generate_koot_example():
         G.add_edge(u, v, weight=d)
 
     nx.set_node_attributes(G, node_labels, "label")
+    return G
+
+
+def generate_from_edge_list(edgelist: str):
+    try:
+        edges = ast.literal_eval(f'[{edgelist}]')
+    except SyntaxError as e:
+        print(f"Error parsing edge list: {e}")
+        return None
+    print("Edges: ", edges)
+
+    G = nx.from_edgelist(edges)
+    # TODO: check if connected
+    print(G)
     return G
