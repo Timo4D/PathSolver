@@ -33,18 +33,32 @@ def generate_koot_example():
         G.add_edge(u, v, weight=d)
 
     nx.set_node_attributes(G, node_labels, "label")
+    print(nx.to_edgelist(G))
     return G
 
 
 def generate_from_edge_list(edgelist: str):
     try:
         edges = ast.literal_eval(f'[{edgelist}]')
-    except SyntaxError as e:
+    except (SyntaxError, ValueError) as e:
         print(f"Error parsing edge list: {e}")
-        return None
-    print("Edges: ", edges)
+        return "Invalid Edge List"
 
-    G = nx.from_edgelist(edges)
-    # TODO: check if connected
-    print(G)
-    return G
+    converted_edges = []
+    for edge in edges:
+        if len(edge) == 3:
+            u, v, w = edge
+            converted_edges.append((u, v, {'weight': w}))
+        elif len(edge) == 2:
+            u, v = edge
+            converted_edges.append((u, v))
+
+    print(converted_edges)
+    # try:
+    G = nx.from_edgelist(converted_edges)
+    # except
+
+    if nx.is_connected(G):
+        return G
+    else:
+        return "Graph is not connected"

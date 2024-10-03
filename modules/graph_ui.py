@@ -202,7 +202,15 @@ def graph_ui_server(input, output, session):
         elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
             graph.set(generate_koot_example())
         elif input.selectize_graph() == GraphType.EDGE_LIST.value:
-            graph.set(generate_from_edge_list(input.edge_list_input()))
+            edge_list_input = input.edge_list_input()
+            if isinstance(edge_list_input, str):
+                result = generate_from_edge_list(edge_list_input)
+                if isinstance(result, str):
+                    step_explanation.set(result)
+                else:
+                    graph.set(result)
+            else:
+                graph.set(edge_list_input)
 
     @output
     @render.data_frame
@@ -257,7 +265,7 @@ def graph_ui_server(input, output, session):
             )
         if input.selectize_graph() == GraphType.EDGE_LIST.value:
             return ui.TagList(
-                ui.input_text_area("edge_list_input", "Edge List", "(0,1),\n(1,2),\n(2,0)")
+                ui.input_text_area("edge_list_input", "Edge List", "(0,1, 10),\n(1,2, 10),\n(2,0,20)")
             )
 
     @output
