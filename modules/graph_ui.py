@@ -2,6 +2,7 @@ from enum import Enum
 
 import networkx as nx
 import pandas as pd
+from networkx.algorithms.distance_measures import center
 from shiny import ui, render, reactive
 
 from modules.djikstra_explanation import djikstra_explanation
@@ -51,8 +52,14 @@ def graph_ui():
             ),
             ui.output_text("explain"),
             ui.output_plot("graph_plot"),
-            ui.output_data_frame("display_distances"),
-            djikstra_explanation
+            ui.column(
+                12,
+                ui.output_data_frame("display_distances"),
+            ),
+            ui.column(
+                4,
+                djikstra_explanation
+            )
         ),
     )
 

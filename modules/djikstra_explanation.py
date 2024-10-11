@@ -1,8 +1,6 @@
 from htmltools import TagList, tags
 
 djikstra_explanation = TagList(
-    tags.h3("Djikstra"),
-    tags.hr(),
     tags.p("a.Algorithm is initialized with distance 0 for the start vertex and ∞ (infinite) <br /> for all other vertices "),
     tags.p("b.The current vertex is selected from the unvisited vertices by the shortest distance from the start "),
     tags.p("c.For the current vertex, provisional distances to all neighboring vertices are calculated / updated "),
