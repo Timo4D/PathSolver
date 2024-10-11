@@ -1,4 +1,5 @@
 from shiny import App, render, ui
+from shiny.templates.chat.production.openai.app_utils import app_dir
 
 from modules.graph_ui import graph_ui, graph_ui_server
 from modules.plot import create_plot
@@ -20,10 +21,21 @@ simple_graph = ui.page_fluid(
 
 app_ui = ui.page_navbar(
     ui.nav_panel("Startseite", graph_ui()),
-    ui.nav_panel("Über den Algorithmus", simple_plot),
     ui.nav_panel("Über das Projekt", simple_graph),
-    title="Djikstra",
-    id="navbar"
+
+    ui.nav_spacer(),
+    ui.nav_control(ui.input_selectize(
+        "select_lang",
+        label=None,
+        choices={
+            "lang_ger": "German 🇩🇪",
+            "lang_eng": "English 🇺🇸 🇬🇧"
+        },
+        selected="lang_ger",
+        width="auto",
+    )),
+    # ui.nav_control(ui.input_dark_mode()),
+    title= "The Dijkstra Algorithm"
 )
 
 

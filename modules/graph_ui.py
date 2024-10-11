@@ -30,6 +30,8 @@ def graph_ui():
     return ui.page_fluid(
         ui.layout_sidebar(
             ui.sidebar(
+                ui.input_action_button("tutorial", "Tutorial"),
+
                 ui.input_selectize(
                     "selectize_graph",
                     "Select a Graph",
@@ -76,6 +78,7 @@ def restore_state():
         current_edges.set(state["current_edges"])
         current_node.set(state["current_node"])
         step_explanation.set(state["step_explanation"])
+
 
 def reset_df():
     print("reset_df")
@@ -276,3 +279,13 @@ def graph_ui_server(input, output, session):
         print("update graph")
         plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), current_node.get(),
                    current_edges.get())
+
+    @reactive.effect
+    @reactive.event(input.tutorial)
+    def show_important_message():
+        m = ui.modal(
+            "This will be a short introduction into the Application",
+            easy_close=True,
+            footer=None,
+        )
+        ui.modal_show(m)
