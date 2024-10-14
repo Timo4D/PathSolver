@@ -42,7 +42,7 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None, da
     else:
         nx.draw_networkx_edges(G, pos, width=width)
 
-    nx.draw_networkx_nodes(G, pos, node_color=node_color_map, node_size=500)
+    nx.draw_networkx_nodes(G, pos, node_color=node_color_map, node_size=400)
 
     # Draw labels
     if "label" in G.nodes[0]:

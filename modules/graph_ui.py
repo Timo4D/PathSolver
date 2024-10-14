@@ -13,7 +13,7 @@ distances_df = reactive.Value(pd.DataFrame())
 graph = reactive.Value(nx.Graph())
 seed = reactive.Value(1)
 step_counter = reactive.Value(0)
-step_explanation = reactive.Value("Here will be the explanations of every step")
+step_explanation = reactive.Value(TagList("Here will be the explanations of every step"))
 current_node = reactive.Value(None)
 current_edges = reactive.Value([])
 distance = reactive.Value(0)
@@ -121,7 +121,7 @@ def reset_df():
         nodes_visited.set([])
         current_edges.set([])
         current_node.set(None)
-        step_explanation.set("Here will be the explanations of every step")
+        step_explanation.set(TagList("Here will be the explanations of every step"))
 
 
 def init_df():
@@ -160,7 +160,7 @@ def graph_ui_server(input, output, session):
         edges = []
         print("Step", step)
         if step == 0:  # Init
-            step_explanation.set("Step 1: Set distance to start node to 0")
+            step_explanation.set(TagList("First set distance to start node to 0"))
             if not df.empty:
                 start_node = input.start_node()
                 if 0 <= start_node < len(df):
@@ -195,11 +195,24 @@ def graph_ui_server(input, output, session):
 
             distances_df.set(df.copy())
             current_edges.set(current_edges.get() + edges)
+            nodes_visited_without_current = [int(node) for node in nodes_visited.get() if node != current_node.get()]
+            # Casting everything to int do to different int classes: int vs np.int65
+
+            nodes_visited_text = None
+            if nodes_visited_without_current:
+                nodes_visited_text = TagList(
+                    f"We will leave {nodes_visited_without_current} out as we have already visited", ui.br()
+                )
+
+
 
             step_explanation.set(
-                "Lets again look at the possible neighbours that we have not visited yet."
-                "Lets get the cumulative distance to that node calculated and if its lower that wits in it already, put in the new lower cost and update its previous node"
-                f"We will leave {nodes_visited.get()} out as we have already visited"
+                TagList(
+                    "Now look at the possible neighbours", ui.br(),
+                    nodes_visited_text,
+                    "Lets calculate the cumulative distance to every neighbor and compare it to the Table.", ui.br(),
+                    "If the distance is lower that whats already in the Table we need to update it, otherwise we won't change it"
+                )
             )
 
             step_counter.set(step_counter.get() + 1)
@@ -214,13 +227,15 @@ def graph_ui_server(input, output, session):
 
             if current_node.get() == input.target_node():
                 step_explanation.set(
-                    "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it"
+                    TagList("We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it")
                 )
                 step_counter.set(step_counter.get() + 1)
             else:
                 step_explanation.set(
-                    f"You can see that {min_cost_node} is the shortest path to the next node so lets make {current_node.get()} our new Node. "
-                    f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again"
+                    TagList(
+                        f"You can see that {min_cost_node} has the shortest path to the next node so lets make {current_node.get()} our new Node. ", ui.br(),
+                        f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again", ui.br()
+                    )
                 )
                 step_counter.set(step_counter.get() - 1)
             nodes_visited.get().append(current_node.get())
@@ -238,7 +253,7 @@ def graph_ui_server(input, output, session):
             if isinstance(edge_list_input, str):
                 result = generate_from_edge_list(edge_list_input)
                 if isinstance(result, str):
-                    step_explanation.set(result)
+                    step_explanation.set(TagList(result))
                 else:
                     graph.set(result)
             else:
