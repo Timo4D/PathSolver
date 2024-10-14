@@ -52,14 +52,21 @@ def graph_ui():
             ),
             ui.output_text("explain"),
             ui.output_plot("graph_plot"),
-            ui.column(
-                12,
-                ui.output_data_frame("display_distances"),
-            ),
-            ui.column(
-                4,
-                djikstra_explanation
+            ui.row(
+                ui.column(
+                    6,
+                    ui.div(
+                        ui.output_data_frame("display_distances"),
+                        style="display: flex;justify-content: center;"
+                    )
+
+                ),
+                ui.column(
+                    6,
+                    djikstra_explanation
+                )
             )
+
         ),
     )
 
