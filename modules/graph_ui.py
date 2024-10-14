@@ -50,23 +50,33 @@ def graph_ui():
                 ui.input_action_button("prev_step", "Previous Step"),
                 ui.input_action_button("next_step", "Next Step"),
             ),
-            ui.output_text("explain"),
+            ui.card(
+                ui.output_text("explain"),
+
+            ),
             ui.output_plot("graph_plot"),
             ui.row(
                 ui.column(
                     6,
-                    ui.div(
-                        ui.output_data_frame("display_distances"),
-                        style="display: flex;justify-content: center;"
+                    ui.card(
+                        ui.card_header("Distances between nodes"),
+                        ui.card_body(
+                            ui.output_data_frame("display_distances"),
+                        )
                     )
-
                 ),
                 ui.column(
+
                     6,
-                    djikstra_explanation
+                    ui.card(
+                        ui.card_header("Explanaiton of the Algorithm"),
+                        ui.card_body(
+                            djikstra_explanation
+
+                        )
+                    )
                 )
             )
-
         ),
     )
 
