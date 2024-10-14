@@ -3,7 +3,7 @@ import networkx as nx
 from matplotlib.font_manager import font_scalings
 
 
-def plot_graph(G, start, target, seed, current_node=None, current_edges=None):
+def plot_graph(G, start, target, seed, current_node=None, current_edges=None, dark_mode=None):
     width: int = 3
 
     if current_edges is None:
@@ -12,6 +12,11 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None):
         return None
 
     pos = nx.spring_layout(G, seed=seed)
+
+    if dark_mode == "dark":
+        plt.style.use('dark_background')
+    else:
+        plt.style.use('default')
 
     # Draw Node Color
     node_color_map = []

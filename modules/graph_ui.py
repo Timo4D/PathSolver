@@ -300,11 +300,11 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.plot
-    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node, current_node,
+    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node, input.dark_mode_switch, current_node,
                     current_edges)
     def graph_plot():
         plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), current_node.get(),
-                   current_edges.get())
+                   current_edges.get(), input.dark_mode_switch())
 
     @reactive.effect
     @reactive.event(input.tutorial)

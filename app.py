@@ -32,7 +32,7 @@ app_ui = ui.page_navbar(
         selected="lang_ger",
         width="auto",
     )),
-    # ui.nav_control(ui.input_dark_mode()),
+    ui.nav_control(ui.input_dark_mode(id="dark_mode_switch", mode="light")),
     title= "The Dijkstra Algorithm"
 )
 
