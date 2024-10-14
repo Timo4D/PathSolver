@@ -1,8 +1,11 @@
 import matplotlib.pyplot as plt
 import networkx as nx
+from matplotlib.font_manager import font_scalings
 
 
 def plot_graph(G, start, target, seed, current_node=None, current_edges=None):
+    width: int = 3
+
     if current_edges is None:
         current_edges = []
     if not G:
@@ -22,10 +25,7 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None):
         else:
             node_color_map.append('tab:blue')
 
-    print("current edge", current_edges)
-
     if current_edges:
-        print(current_edges)
         edge_color_map = []
         for edge in G.edges:
             if sorted(edge) in current_edges:
@@ -33,11 +33,11 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None):
             else:
                 edge_color_map.append('black')
 
-        nx.draw_networkx_edges(G, pos, edge_color=edge_color_map)
+        nx.draw_networkx_edges(G, pos, edge_color=edge_color_map, width=width)
     else:
-        nx.draw_networkx_edges(G, pos)
+        nx.draw_networkx_edges(G, pos, width=width)
 
-    nx.draw_networkx_nodes(G, pos, node_color=node_color_map)
+    nx.draw_networkx_nodes(G, pos, node_color=node_color_map, node_size=500)
 
     # Draw labels
     if "label" in G.nodes[0]:

@@ -2,7 +2,7 @@ from enum import Enum
 
 import networkx as nx
 import pandas as pd
-from networkx.algorithms.distance_measures import center
+from htmltools import TagList
 from shiny import ui, render, reactive
 
 from modules.djikstra_explanation import djikstra_explanation
@@ -50,10 +50,7 @@ def graph_ui():
                 ui.input_action_button("prev_step", "Previous Step"),
                 ui.input_action_button("next_step", "Next Step"),
             ),
-            ui.card(
-                ui.output_text("explain"),
-
-            ),
+            ui.output_ui("explain"),
             ui.output_plot("graph_plot"),
             ui.row(
                 ui.column(
@@ -66,7 +63,6 @@ def graph_ui():
                     )
                 ),
                 ui.column(
-
                     6,
                     ui.card(
                         ui.card_header("Explanaiton of the Algorithm"),
@@ -134,22 +130,31 @@ def init_df():
 
 def graph_ui_server(input, output, session):
     @output
-    @render.text
+    @render.ui
     def explain():
-        return step_explanation.get()
+        step = step_counter.get()
+        return TagList(
+            ui.card(
+                ui.p(step_explanation.get()),
+                style = "border: 5px solid green;" if step == 3 else ""
+            )
+        )
 
     @reactive.Effect
     @reactive.event(input.prev_step)
     def prev_step():
-        print("prev step")
         restore_state()
 
     @reactive.Effect
     @reactive.event(input.next_step)
     def next_step():
+        step = step_counter.get()
+        if step == 3:
+            # Step 3 means its done
+            return
+
         save_state()
         df = distances_df.get()
-        step = step_counter.get()
         G = graph.get()
         neighbors = []
         edges = []
@@ -273,12 +278,10 @@ def graph_ui_server(input, output, session):
     @reactive.Effect
     @reactive.event(input.target_node, input.start_node)
     def reset_djikstra():
-        print("reset djikstra")
         reset_df()
 
     @reactive.Effect
     def initialize_distances():
-        print("update distances")
         init_df()
 
     @output
@@ -300,7 +303,6 @@ def graph_ui_server(input, output, session):
     @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node, current_node,
                     current_edges)
     def graph_plot():
-        print("update graph")
         plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), current_node.get(),
                    current_edges.get())
 
