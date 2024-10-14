@@ -55,6 +55,7 @@ def graph_ui():
             ui.row(
                 ui.column(
                     6,
+
                     ui.card(
                         ui.card_header("Distances between nodes"),
                         ui.card_body(
@@ -64,6 +65,10 @@ def graph_ui():
                 ),
                 ui.column(
                     6,
+                    ui.card(
+                        ui.card_header("Visited Nodes"),
+                        ui.card_body(ui.output_ui("visited_nodes"))
+                    ),
                     ui.card(
                         ui.card_header("Explanaiton of the Algorithm"),
                         ui.card_body(
@@ -101,7 +106,6 @@ def restore_state():
 
 
 def reset_df():
-    print("reset_df")
     G = graph.get()
     if G:
         if "label" in G.nodes[0]:
@@ -136,9 +140,17 @@ def graph_ui_server(input, output, session):
         return TagList(
             ui.card(
                 ui.p(step_explanation.get()),
-                style = "border: 5px solid green;" if step == 3 else ""
+                style="border: 5px solid green;" if step == 3 else ""
             )
         )
+
+    @output
+    @render.ui
+    @reactive.event(nodes_visited)
+    def visited_nodes():
+        print(nodes_visited.get())
+        nodes = nodes_visited.get() if nodes_visited.get() else "No nodes visited yet"
+        return TagList(nodes)
 
     @reactive.Effect
     @reactive.event(input.prev_step)
@@ -158,7 +170,6 @@ def graph_ui_server(input, output, session):
         G = graph.get()
         neighbors = []
         edges = []
-        print("Step", step)
         if step == 0:  # Init
             step_explanation.set(TagList("First set distance to start node to 0"))
             if not df.empty:
@@ -204,8 +215,6 @@ def graph_ui_server(input, output, session):
                     f"We will leave {nodes_visited_without_current} out as we have already visited", ui.br()
                 )
 
-
-
             step_explanation.set(
                 TagList(
                     "Now look at the possible neighbours", ui.br(),
@@ -227,14 +236,17 @@ def graph_ui_server(input, output, session):
 
             if current_node.get() == input.target_node():
                 step_explanation.set(
-                    TagList("We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it")
+                    TagList(
+                        "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it")
                 )
                 step_counter.set(step_counter.get() + 1)
             else:
                 step_explanation.set(
                     TagList(
-                        f"You can see that {min_cost_node} has the shortest path to the next node so lets make {current_node.get()} our new Node. ", ui.br(),
-                        f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again", ui.br()
+                        f"You can see that {min_cost_node} has the shortest path to the next node so lets make {current_node.get()} our new Node. ",
+                        ui.br(),
+                        f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again",
+                        ui.br()
                     )
                 )
                 step_counter.set(step_counter.get() - 1)
@@ -315,7 +327,8 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.plot
-    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node, input.dark_mode_switch, current_node,
+    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node,
+                    input.dark_mode_switch, current_node,
                     current_edges)
     def graph_plot():
         plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), current_node.get(),
