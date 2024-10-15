@@ -6,6 +6,7 @@ from htmltools import TagList
 from shiny import ui, render, reactive
 
 from modules.djikstra_explanation import djikstra_explanation
+from modules.tutorial_modal import tutorial_modal, tutorial_modal_server
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
 from utils.graph_utils import plot_graph
 
@@ -31,7 +32,7 @@ def graph_ui():
     return ui.page_fluid(
         ui.layout_sidebar(
             ui.sidebar(
-                ui.input_action_button("tutorial", "Tutorial"),
+                tutorial_modal(),
 
                 ui.input_selectize(
                     "selectize_graph",
@@ -334,12 +335,4 @@ def graph_ui_server(input, output, session):
         plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), current_node.get(),
                    current_edges.get(), input.dark_mode_switch())
 
-    @reactive.effect
-    @reactive.event(input.tutorial)
-    def show_important_message():
-        m = ui.modal(
-            "This will be a short introduction into the Application",
-            easy_close=True,
-            footer=None,
-        )
-        ui.modal_show(m)
+    tutorial_modal_server(input, output, session)
