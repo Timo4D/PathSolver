@@ -149,7 +149,7 @@ def graph_ui_server(input, output, session):
     @reactive.event(nodes_visited)
     def visited_nodes():
         print(nodes_visited.get())
-        nodes = nodes_visited.get() if nodes_visited.get() else "No nodes visited yet"
+        nodes = ", ".join([str(int(node)) for node in nodes_visited.get()]) if nodes_visited.get() else "No nodes visited yet"
         return TagList(nodes)
 
     @reactive.Effect
@@ -181,7 +181,7 @@ def graph_ui_server(input, output, session):
                     else:
                         df.iloc[start_node, 2] = start_node
                     distances_df.set(df)
-                    nodes_visited.get().append(start_node)
+                    nodes_visited.set(nodes_visited.get() + [start_node])
                     current_node.set(start_node)
                     step_counter.set(step + 1)
                 else:
@@ -250,7 +250,7 @@ def graph_ui_server(input, output, session):
                     )
                 )
                 step_counter.set(step_counter.get() - 1)
-            nodes_visited.get().append(current_node.get())
+            nodes_visited.set(nodes_visited.get() + [current_node.get()])
         elif step == 3:
             return
 
