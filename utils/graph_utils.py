@@ -15,8 +15,10 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None, da
 
     if dark_mode == "dark":
         plt.style.use('dark_background')
+        default_color = 'white'
     else:
         plt.style.use('default')
+        default_color = 'black'
 
     # Draw Node Color
     node_color_map = []
@@ -40,7 +42,7 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None, da
 
         nx.draw_networkx_edges(G, pos, edge_color=edge_color_map, width=width)
     else:
-        nx.draw_networkx_edges(G, pos, width=width)
+        nx.draw_networkx_edges(G, pos, edge_color=default_color, width=width)
 
     nx.draw_networkx_nodes(G, pos, node_color=node_color_map, node_size=400)
 
@@ -49,7 +51,7 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None, da
         nx.draw_networkx_labels(G, pos)
         labels = dict(sorted(nx.get_node_attributes(G, "label").items()))
         label_pos = {node: (coords[0], coords[1] - 0.12) for node, coords in pos.items()}
-        nx.draw_networkx_labels(G, label_pos, labels)
+        nx.draw_networkx_labels(G, label_pos, labels, font_color=default_color)
     else:
         labels = {node: str(node) for node in G.nodes()}
         nx.draw_networkx_labels(G, pos, labels)
