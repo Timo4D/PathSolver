@@ -258,7 +258,10 @@ def graph_ui_server(input, output, session):
     @reactive.Effect
     def update_graph():
         if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
-            graph.set(generate_random_graph(input.n_slider(), input.k_slider(), input.p_slider()))
+            if input.k_slider() > input.n_slider():
+                step_explanation.set(TagList("Please select make sure that k is not smaller than n"))
+            else:
+                graph.set(generate_random_graph(input.n_slider(), input.k_slider(), input.p_slider()))
         elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
             graph.set(generate_koot_example())
         elif input.selectize_graph() == GraphType.EDGE_LIST.value:
