@@ -17,31 +17,27 @@ def tutorial_modal_server(input, output, session):
 
             ui.h4("Step 1"),
             ui.output_image("select_grap_image"),
-            """
-            You need to select what kind of Graph you want to work on.
-            Deutschland Beispiel is a premade graph with some German Cities
-            You can generate a random graph for you or define you own.
-            """,
+
+            "You need to select what kind of Graph you want to work on.", ui.br(),
+            "Deutschland Beispiel is a pre-made graph with some German Cities", ui.br(),
+            "You can generate a random graph for you or define you own.", ui.br(),
+
+            ui.hr(),
             ui.h4("Step 2"),
             ui.output_image("start_targe_seed_image"),
-            """
-            After choosing a graph you can select the start and the target node.
-            The Dijkstra's algorithm will then try to find the fastest path from the start node to the target node.
-            
-            If you want to change the layout of you graph you simply need to change the layout seed until you find a good looking layout.
-            """,
+            "After choosing a graph you can select the start and the target node.", ui.br(),
+            "The Dijkstra's algorithm will then try to find the fastest path from the start node to the target node.", ui.br(),
+            "If you want to change the layout of you graph you simply need to change the layout seed until you find a good looking layout.",
+            ui.hr(),
             ui.h4("Step 3"),
             ui.output_image("prev_next_image", height="100%", width="100%"),
-            """
-            To see each the algorithm do its work press the next step button. Each step will also be explained on the card below.
-            If you like to look at a previous step, simply press the previous step button.
-            During this time you can follow what the algorithm already figured out by looking at the distances between nodes table or the visited nodes card.
-            """,
+            "To see each the algorithm do its work press the next step button. Each step will also be explained on the card below.", ui.br(),
+            "If you like to look at a previous step, simply press the previous step button.", ui.br(),
+            "During this time you can follow what the algorithm already figured out by looking at the distances between nodes table or the visited nodes card.",
+            ui.hr(),
             ui.h4("Step 4"),
-            """
-            After the algorithm is done it will highlight the fastest way possible for you on the graph and you.
-            At that point you can either go back with the previous step button and review the steps again or start over with a new graph.
-            """,
+            "After the algorithm is done it will highlight the fastest way possible for you on the graph and you.", ui.br(),
+            "At that point you can either go back with the previous step button and review the steps again or start over with a new graph.",
             title="The Dijkstra Algorithm",
             easy_close=True,
             footer=None,
