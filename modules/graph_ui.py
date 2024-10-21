@@ -47,11 +47,11 @@ def graph_ui():
                 ui.input_numeric("target_node", "Target Node", value=1, min=0),
                 ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
             ),
+            ui.output_ui("explain"),
             ui.layout_column_wrap(
                 ui.input_action_button("prev_step", "Previous Step"),
                 ui.input_action_button("next_step", "Next Step"),
             ),
-            ui.output_ui("explain"),
             ui.output_plot("graph_plot"),
             ui.row(
                 ui.column(
@@ -139,10 +139,9 @@ def graph_ui_server(input, output, session):
     def explain():
         step = step_counter.get()
         return TagList(
-            ui.card(
-                ui.p(step_explanation.get()),
-                style="border: 5px solid green;" if step == 3 else ""
-            )
+            ui.h1("Step ", step),
+            ui.p(step_explanation.get()),
+            # style="border: 5px solid green;" if step == 3 else ""
         )
 
     @output
@@ -150,7 +149,8 @@ def graph_ui_server(input, output, session):
     @reactive.event(nodes_visited)
     def visited_nodes():
         print(nodes_visited.get())
-        nodes = ", ".join([str(int(node)) for node in nodes_visited.get()]) if nodes_visited.get() else "No nodes visited yet"
+        nodes = ", ".join(
+            [str(int(node)) for node in nodes_visited.get()]) if nodes_visited.get() else "No nodes visited yet"
         return TagList(nodes)
 
     @reactive.Effect
@@ -279,31 +279,19 @@ def graph_ui_server(input, output, session):
     @render.data_frame
     @reactive.event(distances_df, step_counter, input.start_node, input.target_node)
     def display_distances():
-        df = distances_df.get()
-        if df.empty or df.shape[1] < 2:
-            return render.DataGrid(df)
+        styles = [
+            {
+                "rows": [input.start_node()],
+                "style": {"background-color": "green"}
+            },
+            {
+                "rows": [input.target_node()],
+                "style": {"background-color": "red"}
+            }
+        ]
+        return render.DataTable(
+            distances_df.get(), width="100%", styles=styles
 
-        return render.DataGrid(
-            df,
-            styles=[
-                # Bold the first column
-                {
-                    "cols": [0],
-                    "style": {"font-weight": "bold"},
-                },
-                # Highlight start node green
-                {
-                    "rows": [input.start_node()],
-                    "cols": [0],
-                    "style": {"background-color": "#2ca02c"},
-                },
-                # Highlight target node red
-                {
-                    "rows": [input.target_node()],
-                    "cols": [0],
-                    "style": {"background-color": "#d62728"},
-                },
-            ]
         )
 
     @reactive.Effect
