@@ -48,10 +48,7 @@ def graph_ui():
                 ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
             ),
             ui.output_ui("explain"),
-            ui.layout_column_wrap(
-                ui.input_action_button("prev_step", "Previous Step"),
-                ui.input_action_button("next_step", "Next Step"),
-            ),
+            ui.output_ui("progress_bar"),
             ui.output_plot("graph_plot"),
             ui.row(
                 ui.column(
@@ -133,15 +130,46 @@ def init_df():
     reset_df()
 
 
+def path(**attributes):
+    return ui.tags.path(**attributes)
+
+
 def graph_ui_server(input, output, session):
+    @output
+    @render.ui
+    def progress_bar():
+        return TagList(
+            ui.layout_columns(
+                ui.input_action_button("prev_step", "Previous Step"),
+                ui.div(
+                    id="div0",
+                    style=f"background-color: {'red' if step_counter.get() >= 0 else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;"),
+                ui.div(
+                    id="div1",
+                    style=f"background-color: {'red' if step_counter.get() >= 1 else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;"),
+                ui.div(
+                    id="div2",
+                    style=f"background-color: {'red' if step_counter.get() >= 2 else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;"),
+                ui.div(
+                    id="div3",
+                    style=f"background-color: {'red' if step_counter.get() >= 3 else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;"),
+                ui.input_action_button("next_step", "Next Step"),
+            )
+        )
+
     @output
     @render.ui
     def explain():
         step = step_counter.get()
+        headigns = {
+            0: "Step 0: Initialize",
+            1: "Step 1: Visit Nodes",
+            2: "Step 2: Look For Next Node",
+            3: "Step 3: Finish"
+        }
         return TagList(
-            ui.h1("Step ", step),
-            ui.p(step_explanation.get()),
-            # style="border: 5px solid green;" if step == 3 else ""
+            ui.h1(headigns.get(step), style="margin-bottom: 0;"),
+            ui.p(step_explanation.get(), style="margin-top: 0;"),
         )
 
     @output
@@ -234,7 +262,9 @@ def graph_ui_server(input, output, session):
             if current_node.get() == input.target_node():
                 step_explanation.set(
                     TagList(
-                        "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it")
+                        "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it",
+                        "When you press next step again the solution will be shown"
+                    )
                 )
                 step_counter.set(step_counter.get() + 1)
             else:
@@ -249,6 +279,7 @@ def graph_ui_server(input, output, session):
                 step_counter.set(step_counter.get() - 1)
             nodes_visited.set(nodes_visited.get() + [current_node.get()])
         elif step == 3:
+            #TODO: The user should need to input the correct path before being shown the correct solution
             path = dijkstra_solution(G, input.start_node(), input.target_node())
             current_edges.set([list(edge) for edge in zip(path, path[1:])])
             return
@@ -289,7 +320,6 @@ def graph_ui_server(input, output, session):
         ]
         return render.DataTable(
             distances_df.get(), width="100%", styles=styles
-
         )
 
     @reactive.Effect
@@ -312,7 +342,7 @@ def graph_ui_server(input, output, session):
             )
         if input.selectize_graph() == GraphType.EDGE_LIST.value:
             return ui.TagList(
-                ui.input_text_area("edge_list_input", "Edge List", "(0,1, 10),\n(1,2, 10),\n(2,0,20)")
+                ui.input_text_area("edge_list_input", "Edge List", "(0,1, 10),\n(1,2, 10),\n(2,0,20)", rows = 10)
             )
 
     @output
