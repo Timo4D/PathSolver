@@ -1,7 +1,10 @@
 import matplotlib.pyplot as plt
 import networkx as nx
-from matplotlib.font_manager import font_scalings
+from networkx.classes import Graph, edges
 
+
+def dijkstra_solution(G: Graph, start:int, target:int, weight="weight"):
+    return nx.dijkstra_path(G, start, target, weight=weight)
 
 def plot_graph(G, start, target, seed, current_node=None, current_edges=None, dark_mode=None):
     width: int = 3
@@ -35,7 +38,7 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None, da
     if current_edges:
         edge_color_map = []
         for edge in G.edges:
-            if sorted(edge) in current_edges:
+            if tuple(edge) in [tuple(e) for e in current_edges] or tuple(edge[::-1]) in [tuple(e) for e in current_edges]:
                 edge_color_map.append('tab:red')
             else:
                 edge_color_map.append('black')

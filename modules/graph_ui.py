@@ -8,7 +8,7 @@ from shiny import ui, render, reactive
 from modules.djikstra_explanation import djikstra_explanation
 from modules.tutorial_modal import tutorial_modal, tutorial_modal_server
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
-from utils.graph_utils import plot_graph
+from utils.graph_utils import plot_graph, dijkstra_solution
 
 distances_df = reactive.Value(pd.DataFrame())
 graph = reactive.Value(nx.Graph())
@@ -148,7 +148,6 @@ def graph_ui_server(input, output, session):
     @render.ui
     @reactive.event(nodes_visited)
     def visited_nodes():
-        print(nodes_visited.get())
         nodes = ", ".join(
             [str(int(node)) for node in nodes_visited.get()]) if nodes_visited.get() else "No nodes visited yet"
         return TagList(nodes)
@@ -162,9 +161,6 @@ def graph_ui_server(input, output, session):
     @reactive.event(input.next_step)
     def next_step():
         step = step_counter.get()
-        if step == 3:
-            # Step 3 means its done
-            return
 
         save_state()
         df = distances_df.get()
@@ -253,6 +249,8 @@ def graph_ui_server(input, output, session):
                 step_counter.set(step_counter.get() - 1)
             nodes_visited.set(nodes_visited.get() + [current_node.get()])
         elif step == 3:
+            path = dijkstra_solution(G, input.start_node(), input.target_node())
+            current_edges.set([list(edge) for edge in zip(path, path[1:])])
             return
 
     @reactive.Effect
