@@ -20,6 +20,7 @@ current_edges = reactive.Value([])
 distance = reactive.Value(0)
 nodes_visited = reactive.Value([])
 state_history = reactive.Value([])
+invalid_edge_list = reactive.Value(False)
 
 
 class GraphType(Enum):
@@ -344,12 +345,17 @@ def graph_ui_server(input, output, session):
             )
         if input.selectize_graph() == GraphType.EDGE_LIST.value:
             return ui.TagList(
-                ui.input_text_area("edge_list_input", "Edge List", "(0,1, 10),\n(1,2, 10),\n(2,0,20)", rows=10, autoresize=True)
+                ui.input_text_area("edge_list_input", TagList("Edge List", ui.output_ui("edge_list_error_message")), "(0,1, 10),\n(1,2, 10),\n(2,0,20)", rows=10, autoresize=True)
             )
         if input.selectize_graph() == GraphType.CSV_FILE.value:
             return ui.TagList(
                 ui.input_file("test", "Upload a .csv file")
             )
+
+    @output
+    @render.ui
+    def edge_list_error_message():
+        return ui.p("Your Input edge list is not Valid!", style="border: 3px solid red;") if invalid_edge_list.get() else None,
 
     @output
     @render.plot
