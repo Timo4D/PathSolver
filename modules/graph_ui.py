@@ -35,16 +35,7 @@ def graph_ui():
         ui.layout_sidebar(
             ui.sidebar(
                 tutorial_modal(),
-
-                ui.input_selectize(
-                    "selectize_graph",
-                    "Select a Graph",
-                    {GraphType.RANDOM_GRAPH.value: "Random Graph",
-                     GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Deutschland Beispiel",
-                     GraphType.EDGE_LIST.value: "Import from Edgelist",
-                     GraphType.CSV_FILE.value: "Upload a CSV file"},
-                    selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
-                ),
+                graph_selection_ui(),
                 ui.output_ui("graph_generator_settings"),
                 ui.input_numeric("start_node", "Start Node", value=0, min=0),
                 ui.input_numeric("target_node", "Target Node", value=1, min=0),
@@ -54,32 +45,48 @@ def graph_ui():
             ui.output_ui("progress_bar"),
             ui.output_plot("graph_plot"),
             ui.row(
-                ui.column(
-                    6,
-
-                    ui.card(
-                        ui.card_header("Distances between nodes"),
-                        ui.card_body(
-                            ui.output_data_frame("display_distances"),
-                        )
-                    )
-                ),
-                ui.column(
-                    6,
-                    ui.card(
-                        ui.card_header("Visited Nodes"),
-                        ui.card_body(ui.output_ui("visited_nodes"))
-                    ),
-                    ui.card(
-                        ui.card_header("Explanaiton of the Algorithm"),
-                        ui.card_body(
-                            djikstra_explanation
-
-                        )
-                    )
-                )
+                ui.column(6, distances_ui()),
+                ui.column(6, visited_nodes_ui(), algorithm_explanation_ui())
             )
         ),
+    )
+
+
+def graph_selection_ui():
+    return ui.input_selectize(
+        "selectize_graph",
+        "Select a Graph",
+        {GraphType.RANDOM_GRAPH.value: "Random Graph",
+         GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Deutschland Beispiel",
+         GraphType.EDGE_LIST.value: "Import from Edgelist",
+         GraphType.CSV_FILE.value: "Upload a CSV file"},
+        selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
+    )
+
+
+def distances_ui():
+    return ui.card(
+        ui.card_header("Distances between nodes"),
+        ui.card_body(
+            ui.output_data_frame("display_distances"),
+        )
+    )
+
+
+def visited_nodes_ui():
+    return ui.card(
+        ui.card_header("Visited Nodes"),
+        ui.card_body(ui.output_ui("visited_nodes"))
+    )
+
+
+def algorithm_explanation_ui():
+    return ui.card(
+        ui.card_header("Explanaiton of the Algorithm"),
+        ui.card_body(
+            djikstra_explanation
+
+        )
     )
 
 
@@ -109,13 +116,7 @@ def restore_state():
 def reset_df():
     G = graph.get()
     if G:
-        if "label" in G.nodes[0]:
-            nodes = dict(sorted(nx.get_node_attributes(G, "label").items())).values()
-            index_name = "Cities"
-        else:
-            nodes = [str(node) for node in G.nodes]
-            index_name = "Node"
-
+        nodes, index_name = get_graph_nodes_and_index_name(G)
         distance_matrix = pd.DataFrame(index=nodes, columns=["Cost", "Previous"])
         distance_matrix["Cost"] = float('inf')
 
@@ -129,51 +130,26 @@ def reset_df():
         step_explanation.set(TagList("Here will be the explanations of every step"))
 
 
-def init_df():
-    reset_df()
-
-
-def path(**attributes):
-    return ui.tags.path(**attributes)
+def get_graph_nodes_and_index_name(G):
+    if "label" in G.nodes[0]:
+        nodes = dict(sorted(nx.get_node_attributes(G, "label").items())).values()
+        index_name = "Cities"
+    else:
+        nodes = [str(node) for node in G.nodes]
+        index_name = "Node"
+    return nodes, index_name
 
 
 def graph_ui_server(input, output, session):
     @output
     @render.ui
     def progress_bar():
-        return TagList(
-            ui.layout_columns(
-                ui.input_action_button("prev_step", "Previous Step"),
-                ui.div(
-                    id="div0",
-                    style=f"background-color: {'red' if step_counter.get() >= 0 else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;"),
-                ui.div(
-                    id="div1",
-                    style=f"background-color: {'red' if step_counter.get() >= 1 else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;"),
-                ui.div(
-                    id="div2",
-                    style=f"background-color: {'red' if step_counter.get() >= 2 else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;"),
-                ui.div(
-                    id="div3",
-                    style=f"background-color: {'red' if step_counter.get() >= 3 else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;"),
-                ui.input_action_button("next_step", "Next Step"),
-            )
-        )
+        return create_progress_bar()
 
     @output
     @render.ui
     def explain():
-        step = step_counter.get()
-        headigns = {
-            0: "Step 0: Initialize",
-            1: "Step 1: Visit Nodes",
-            2: "Step 2: Look For Next Node",
-            3: "Step 3: Finish"
-        }
-        return TagList(
-            ui.h1(headigns.get(step), style="margin-bottom: 0;"),
-            ui.p(step_explanation.get(), style="margin-top: 0;"),
-        )
+        return create_explanation_ui()
 
     @output
     @render.ui
@@ -191,139 +167,17 @@ def graph_ui_server(input, output, session):
     @reactive.Effect
     @reactive.event(input.next_step)
     def next_step():
-        step = step_counter.get()
-
-        save_state()
-        df = distances_df.get()
-        G = graph.get()
-        neighbors = []
-        edges = []
-        if step == 0:  # Init
-            step_explanation.set(TagList("First set distance to start node to 0"))
-            if not df.empty:
-                start_node = input.start_node()
-                if 0 <= start_node < len(df):
-                    df.iloc[start_node, 1] = 0
-                    if "label" in G.nodes[0]:
-                        df.iloc[start_node, 2] = nx.get_node_attributes(G, "label")[start_node]
-                    else:
-                        df.iloc[start_node, 2] = start_node
-                    distances_df.set(df)
-                    nodes_visited.set(nodes_visited.get() + [start_node])
-                    current_node.set(start_node)
-                    step_counter.set(step + 1)
-                else:
-                    print(f"Invalid start node: {start_node}")
-        elif step == 1:  # Look at neighbors
-            prev_cost = df.iloc[current_node.get(), 1]
-
-            for n in G.neighbors(current_node.get()):
-                if n not in nodes_visited.get():
-                    new_weight = G[n][current_node.get()]['weight'] + prev_cost
-
-                    neighbors.append({"node": n, "weight": (G[n][current_node.get()]['weight'] + prev_cost)})
-
-                    if new_weight < df.iloc[n, 1]:
-                        df.iloc[n, 1] = new_weight
-                        if "label" in G.nodes[0]:
-                            df.iloc[n, 2] = nx.get_node_attributes(G, "label")[current_node.get()]
-                        else:
-                            df.iloc[n, 2] = current_node.get()
-
-                    edges.append(sorted((n, current_node.get())))
-
-            distances_df.set(df.copy())
-            current_edges.set(current_edges.get() + edges)
-            nodes_visited_without_current = [int(node) for node in nodes_visited.get() if node != current_node.get()]
-            # Casting everything to int do to different int classes: int vs np.int65
-
-            nodes_visited_text = None
-            if nodes_visited_without_current:
-                nodes_visited_text = TagList(
-                    f"We will leave {nodes_visited_without_current} out as we have already visited", ui.br()
-                )
-
-            step_explanation.set(
-                TagList(
-                    "Now look at the possible neighbours", ui.br(),
-                    nodes_visited_text,
-                    "Lets calculate the cumulative distance to every neighbor and compare it to the Table.", ui.br(),
-                    "If the distance is lower that whats already in the Table we need to update it, otherwise we won't change it"
-                )
-            )
-
-            step_counter.set(step_counter.get() + 1)
-
-        elif step == 2:  # set new current node
-
-            current_edges.set([])
-
-            unvisited_nodes = df[~df.index.isin(nodes_visited.get())]
-            min_cost_node = unvisited_nodes["Cost"].idxmin()
-            current_node.set(min_cost_node)
-
-            if current_node.get() == input.target_node():
-                step_explanation.set(
-                    TagList(
-                        "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it",
-                        "When you press next step again the solution will be shown"
-                    )
-                )
-                step_counter.set(step_counter.get() + 1)
-            else:
-                step_explanation.set(
-                    TagList(
-                        f"You can see that {min_cost_node} has the shortest path to the next node so lets make {current_node.get()} our new Node. ",
-                        ui.br(),
-                        f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again",
-                        ui.br()
-                    )
-                )
-                step_counter.set(step_counter.get() - 1)
-            nodes_visited.set(nodes_visited.get() + [current_node.get()])
-        elif step == 3:
-            # TODO: The user should need to input the correct path before being shown the correct solution
-            path = dijkstra_solution(G, input.start_node(), input.target_node())
-            current_edges.set([list(edge) for edge in zip(path, path[1:])])
-            return
+        handle_next_step(input)
 
     @reactive.Effect
     def update_graph():
-        if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
-            if input.k_slider() > input.n_slider():
-                step_explanation.set(TagList("Please select make sure that k is not smaller than n"))
-            else:
-                graph.set(generate_random_graph(input.n_slider(), input.k_slider(), input.p_slider()))
-        elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
-            graph.set(generate_koot_example())
-        elif input.selectize_graph() == GraphType.EDGE_LIST.value:
-            edge_list_input = input.edge_list_input()
-            if isinstance(edge_list_input, str):
-                result = generate_from_edge_list(edge_list_input)
-                if isinstance(result, str):
-                    step_explanation.set(TagList(result))
-                else:
-                    graph.set(result)
-            else:
-                graph.set(edge_list_input)
+        update_graph_based_on_selection(input)
 
     @output
     @render.data_frame
     @reactive.event(distances_df, step_counter, input.start_node, input.target_node)
     def display_distances():
-        styles = [
-            {
-                "rows": [input.start_node()],
-                "style": {"background-color": "green"}
-            },
-            {
-                "rows": [input.target_node()],
-                "style": {"background-color": "red"}
-            }
-        ]
-        return render.DataTable(
-            distances_df.get(), width="100%", styles=styles
-        )
+        return render_distances(input)
 
     @reactive.Effect
     @reactive.event(input.target_node, input.start_node)
@@ -332,30 +186,18 @@ def graph_ui_server(input, output, session):
 
     @reactive.Effect
     def initialize_distances():
-        init_df()
+        reset_df()
 
     @output
     @render.ui
     def graph_generator_settings():
-        if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
-            return ui.TagList(
-                ui.input_slider("n_slider", "Number of Nodes", 2, 30, 8),
-                ui.input_slider("k_slider", "Neighbors in a ring topology", 2, 5, 3),
-                ui.input_slider("p_slider", "Probability of rewiring each edge", 0, 1, 0.5),
-            )
-        if input.selectize_graph() == GraphType.EDGE_LIST.value:
-            return ui.TagList(
-                ui.input_text_area("edge_list_input", TagList("Edge List", ui.output_ui("edge_list_error_message")), "(0,1, 10),\n(1,2, 10),\n(2,0,20)", rows=10, autoresize=True)
-            )
-        if input.selectize_graph() == GraphType.CSV_FILE.value:
-            return ui.TagList(
-                ui.input_file("test", "Upload a .csv file")
-            )
+        return render_graph_generator_settings(input)
 
     @output
     @render.ui
     def edge_list_error_message():
-        return ui.p("Your Input edge list is not Valid!", style="border: 3px solid red;") if invalid_edge_list.get() else None,
+        return ui.p("Your Input edge list is not Valid!",
+                    style="border: 3px solid red;") if invalid_edge_list.get() else None,
 
     @output
     @render.plot
@@ -367,3 +209,178 @@ def graph_ui_server(input, output, session):
                    current_edges.get(), input.dark_mode_switch())
 
     tutorial_modal_server(input, output, session)
+
+
+def create_progress_bar():
+    return TagList(
+        ui.layout_columns(
+            ui.input_action_button("prev_step", "Previous Step"),
+            *[ui.div(
+                style=f"background-color: {'red' if step_counter.get() >= i else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;")
+                for i in range(4)],
+            ui.input_action_button("next_step", "Next Step"),
+        )
+    )
+
+
+def create_explanation_ui():
+    step = step_counter.get()
+    headings = {
+        0: "Step 0: Initialize",
+        1: "Step 1: Visit Nodes",
+        2: "Step 2: Look For Next Node",
+        3: "Step 3: Finish",
+    }
+    return TagList(
+        ui.h1(headings.get(step), style="margin-bottom: 0;"),
+        ui.p(step_explanation.get(), style="margin-top: 0;"),
+    )
+
+def update_graph_based_on_selection(input):
+    if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
+        if input.k_slider() > input.n_slider():
+            step_explanation.set(TagList("Please select make sure that k is not smaller than n"))
+        else:
+            graph.set(generate_random_graph(input.n_slider(), input.k_slider(), input.p_slider()))
+    elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
+        graph.set(generate_koot_example())
+    elif input.selectize_graph() == GraphType.EDGE_LIST.value:
+        edge_list_input = input.edge_list_input()
+        if isinstance(edge_list_input, str):
+            result = generate_from_edge_list(edge_list_input)
+            if isinstance(result, str):
+                step_explanation.set(TagList(result))
+            else:
+                graph.set(result)
+        else:
+            graph.set(edge_list_input)
+
+
+def render_graph_generator_settings(input):
+    if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
+        return ui.TagList(
+            ui.input_slider("n_slider", "Number of Nodes", 2, 30, 8),
+            ui.input_slider("k_slider", "Neighbors in a ring topology", 2, 5, 3),
+            ui.input_slider("p_slider", "Probability of rewiring each edge", 0, 1, 0.5),
+        )
+    if input.selectize_graph() == GraphType.EDGE_LIST.value:
+        return ui.TagList(
+            ui.input_text_area("edge_list_input", TagList("Edge List", ui.output_ui("edge_list_error_message")),
+                               "(0,1, 10),\n(1,2, 10),\n(2,0,20)", rows=10, autoresize=True)
+        )
+    if input.selectize_graph() == GraphType.CSV_FILE.value:
+        return ui.TagList(
+            ui.input_file("test", "Upload a .csv file")
+        )
+
+def render_distances(input):
+    styles = [
+        {"rows": [input.start_node()], "style": {"background-color": "green"}},
+        {"rows": [input.target_node()], "style": {"background-color": "red"}},
+    ]
+    return render.DataTable(distances_df.get(), width="100%", styles=styles)
+
+def handle_next_step(input):
+    step = step_counter.get()
+    save_state()
+    df = distances_df.get()
+    G = graph.get()
+    if step == 0:
+        initialize_step(input, df, G)
+    elif step == 1:
+        visit_neighbors(df, G)
+    elif step == 2:
+        set_new_current_node(df, G, input)
+    elif step == 3:
+        show_solution(G, input)
+
+
+def initialize_step(input, df, G):
+    step_explanation.set(TagList("First set distance to start node to 0"))
+    if not df.empty:
+        start_node = input.start_node()
+        if 0 <= start_node < len(df):
+            df.iloc[start_node, 1] = 0
+            if "label" in G.nodes[0]:
+                df.iloc[start_node, 2] = nx.get_node_attributes(G, "label")[start_node]
+            else:
+                df.iloc[start_node, 2] = start_node
+            distances_df.set(df)
+            nodes_visited.set(nodes_visited.get() + [start_node])
+            current_node.set(start_node)
+            step_counter.set(1)
+        else:
+            print(f"Invalid start node: {start_node}")
+
+def visit_neighbors(df, G):
+    prev_cost = df.iloc[current_node.get(), 1]
+    neighbors, edges = [], []
+    for n in G.neighbors(current_node.get()):
+        if n not in nodes_visited.get():
+            new_weight = G[n][current_node.get()]['weight'] + prev_cost
+
+            neighbors.append({"node": n, "weight": (G[n][current_node.get()]['weight'] + prev_cost)})
+
+            if new_weight < df.iloc[n, 1]:
+                df.iloc[n, 1] = new_weight
+                if "label" in G.nodes[0]:
+                    df.iloc[n, 2] = nx.get_node_attributes(G, "label")[current_node.get()]
+                else:
+                    df.iloc[n, 2] = current_node.get()
+
+            edges.append(sorted((n, current_node.get())))
+
+    distances_df.set(df.copy())
+    current_edges.set(current_edges.get() + edges)
+    nodes_visited_without_current = [int(node) for node in nodes_visited.get() if node != current_node.get()]
+    # Casting everything to int do to different int classes: int vs np.int65
+
+    nodes_visited_text = None
+    if nodes_visited_without_current:
+        nodes_visited_text = TagList(
+            f"We will leave {nodes_visited_without_current} out as we have already visited", ui.br()
+        )
+
+    step_explanation.set(
+        TagList(
+            "Now look at the possible neighbours", ui.br(),
+            nodes_visited_text,
+            "Lets calculate the cumulative distance to every neighbor and compare it to the Table.", ui.br(),
+            "If the distance is lower that whats already in the Table we need to update it, otherwise we won't change it"
+        )
+    )
+    step_counter.set(2)
+
+def set_new_current_node(df, G, input):
+    current_edges.set([])
+
+    unvisited_nodes = df[~df.index.isin(nodes_visited.get())]
+    min_cost_node = unvisited_nodes["Cost"].idxmin()
+    current_node.set(min_cost_node)
+
+    if current_node.get() == input.target_node():
+        step_explanation.set(
+            TagList(
+                "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it",
+                "When you press next step again the solution will be shown"
+            )
+        )
+        step_counter.set(step_counter.get() + 1)
+    else:
+        step_explanation.set(
+            TagList(
+                f"You can see that {min_cost_node} has the shortest path to the next node so lets make {current_node.get()} our new Node. ",
+                ui.br(),
+                f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again",
+                ui.br()
+            )
+        )
+        step_counter.set(step_counter.get() - 1)
+    nodes_visited.set(nodes_visited.get() + [current_node.get()])
+
+def show_solution(G, input):
+    # TODO: The user should need to input the correct path before being shown the correct solution
+    path = dijkstra_solution(G, input.start_node(), input.target_node())
+    current_edges.set([list(edge) for edge in zip(path, path[1:])])
+
+
