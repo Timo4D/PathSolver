@@ -7,6 +7,7 @@ from shiny import ui, render, reactive
 
 from modules.djikstra_explanation import djikstra_explanation
 from modules.tutorial_modal import tutorial_modal, tutorial_modal_server
+from modules.solution_quiz import render_solution_quiz
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
 from utils.graph_utils import plot_graph, dijkstra_solution
 
@@ -21,6 +22,7 @@ distance = reactive.Value(0)
 nodes_visited = reactive.Value([])
 state_history = reactive.Value([])
 invalid_edge_list = reactive.Value(False)
+solution = reactive.Value()
 
 
 class GraphType(Enum):
@@ -45,7 +47,7 @@ def graph_ui():
             ui.output_ui("progress_bar"),
             ui.output_plot("graph_plot"),
             ui.row(
-                ui.column(6, distances_ui()),
+                ui.column(6, ui.output_ui("render_solution_quiz_ui"), distances_ui()),
                 ui.column(6, visited_nodes_ui(), algorithm_explanation_ui())
             )
         ),
@@ -62,7 +64,6 @@ def graph_selection_ui():
          GraphType.CSV_FILE.value: "Upload a CSV file"},
         selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
     )
-
 
 def distances_ui():
     return ui.card(
@@ -127,6 +128,7 @@ def reset_df():
         nodes_visited.set([])
         current_edges.set([])
         current_node.set(None)
+        solution.set(None)
         step_explanation.set(TagList("Here will be the explanations of every step"))
 
 
@@ -141,6 +143,12 @@ def get_graph_nodes_and_index_name(G):
 
 
 def graph_ui_server(input, output, session):
+    @output
+    @render.ui
+    def render_solution_quiz_ui():
+        if step_counter.get() == 3:
+            return render_solution_quiz()
+
     @output
     @render.ui
     def progress_bar():
@@ -210,6 +218,20 @@ def graph_ui_server(input, output, session):
 
     tutorial_modal_server(input, output, session)
 
+    @reactive.Effect
+    @reactive.event(input.submit_solution)
+    def check_user_solution():
+        user_input = input.user_solution().strip()
+        user_solution = [int(node) for node in user_input.split(",")]
+        correct_solution = solution.get()
+
+        if user_solution == correct_solution:
+            step_counter.set(4)
+            # to draw the solution
+            handle_next_step(input)
+        else:
+            step_explanation.set(TagList("Sorry, your solution is incorrect. Please try again."))
+
 
 def create_progress_bar():
     return TagList(
@@ -230,6 +252,7 @@ def create_explanation_ui():
         1: "Step 1: Visit Nodes",
         2: "Step 2: Look For Next Node",
         3: "Step 3: Finish",
+        4: "Congratulations! Your solution is correct."
     }
     return TagList(
         ui.h1(headings.get(step), style="margin-bottom: 0;"),
@@ -291,8 +314,11 @@ def handle_next_step(input):
         visit_neighbors(df, G)
     elif step == 2:
         set_new_current_node(df, G, input)
-    elif step == 3:
-        show_solution(G, input)
+        if not solution.get():
+            solution.set(dijkstra_solution(G, input.start_node(), input.target_node()))
+    elif step == 4:
+        show_solution(solution.get(), input)
+        step_explanation.set(TagList(""))
 
 
 def initialize_step(input, df, G):
@@ -362,7 +388,8 @@ def set_new_current_node(df, G, input):
         step_explanation.set(
             TagList(
                 "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it",
-                "When you press next step again the solution will be shown"
+                ui.br(),
+                "You now have to enter your solution of the fastest path in new Box below. If it is correct you will see the path on the graph."
             )
         )
         step_counter.set(step_counter.get() + 1)
@@ -378,9 +405,8 @@ def set_new_current_node(df, G, input):
         step_counter.set(step_counter.get() - 1)
     nodes_visited.set(nodes_visited.get() + [current_node.get()])
 
-def show_solution(G, input):
+def show_solution(solution, input):
     # TODO: The user should need to input the correct path before being shown the correct solution
-    path = dijkstra_solution(G, input.start_node(), input.target_node())
-    current_edges.set([list(edge) for edge in zip(path, path[1:])])
+    current_edges.set([list(edge) for edge in zip(solution, solution[1:])])
 
 
