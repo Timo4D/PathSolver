@@ -26,6 +26,7 @@ class GraphType(Enum):
     RANDOM_GRAPH = "random_graph"
     KOOT_EXAMPLE_DEUTSCHLAND = "koot_example_deutschland"
     EDGE_LIST = "edge_list"
+    CSV_FILE = "csv_file"
 
 
 def graph_ui():
@@ -39,7 +40,8 @@ def graph_ui():
                     "Select a Graph",
                     {GraphType.RANDOM_GRAPH.value: "Random Graph",
                      GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Deutschland Beispiel",
-                     GraphType.EDGE_LIST.value: "Import from Edgelist"},
+                     GraphType.EDGE_LIST.value: "Import from Edgelist",
+                     GraphType.CSV_FILE.value: "Upload a CSV file"},
                     selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
                 ),
                 ui.output_ui("graph_generator_settings"),
@@ -279,7 +281,7 @@ def graph_ui_server(input, output, session):
                 step_counter.set(step_counter.get() - 1)
             nodes_visited.set(nodes_visited.get() + [current_node.get()])
         elif step == 3:
-            #TODO: The user should need to input the correct path before being shown the correct solution
+            # TODO: The user should need to input the correct path before being shown the correct solution
             path = dijkstra_solution(G, input.start_node(), input.target_node())
             current_edges.set([list(edge) for edge in zip(path, path[1:])])
             return
@@ -337,12 +339,16 @@ def graph_ui_server(input, output, session):
         if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
             return ui.TagList(
                 ui.input_slider("n_slider", "Number of Nodes", 2, 30, 8),
-                ui.input_slider("k_slider", "K", 2, 5, 3),
-                ui.input_slider("p_slider", "P", 0, 1, 0.5),
+                ui.input_slider("k_slider", "Neighbors in a ring topology", 2, 5, 3),
+                ui.input_slider("p_slider", "Probability of rewiring each edge", 0, 1, 0.5),
             )
         if input.selectize_graph() == GraphType.EDGE_LIST.value:
             return ui.TagList(
-                ui.input_text_area("edge_list_input", "Edge List", "(0,1, 10),\n(1,2, 10),\n(2,0,20)", rows = 10)
+                ui.input_text_area("edge_list_input", "Edge List", "(0,1, 10),\n(1,2, 10),\n(2,0,20)", rows=10, autoresize=True)
+            )
+        if input.selectize_graph() == GraphType.CSV_FILE.value:
+            return ui.TagList(
+                ui.input_file("test", "Upload a .csv file")
             )
 
     @output
