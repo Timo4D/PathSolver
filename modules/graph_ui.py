@@ -277,8 +277,10 @@ def update_graph_based_on_selection(input):
         if isinstance(edge_list_input, str):
             result = generate_from_edge_list(edge_list_input)
             if isinstance(result, str):
+                invalid_edge_list.set(True)
                 step_explanation.set(TagList(result))
             else:
+                invalid_edge_list.set(False)
                 graph.set(result)
         else:
             graph.set(edge_list_input)
