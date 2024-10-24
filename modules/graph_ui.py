@@ -10,6 +10,7 @@ from modules.tutorial_modal import tutorial_modal, tutorial_modal_server
 from modules.solution_quiz import render_solution_quiz
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
 from utils.graph_utils import plot_graph, dijkstra_solution
+from utils.icons import warning as warning_icon
 
 distances_df = reactive.Value(pd.DataFrame())
 graph = reactive.Value(nx.Graph())
@@ -204,8 +205,9 @@ def graph_ui_server(input, output, session):
     @output
     @render.ui
     def edge_list_error_message():
-        return ui.p("Your Input edge list is not Valid!",
-                    style="border: 3px solid red;") if invalid_edge_list.get() else None,
+        return ui.tooltip(warning_icon, "Your input is invalid") if invalid_edge_list.get() else None
+        # return ui.p("Your Input edge list is not Valid!",
+        #             style="border: 3px solid red;") if invalid_edge_list.get() else None,
 
     @output
     @render.plot
@@ -295,7 +297,7 @@ def render_graph_generator_settings(input):
         )
     if input.selectize_graph() == GraphType.EDGE_LIST.value:
         return ui.TagList(
-            ui.input_text_area("edge_list_input", TagList("Edge List", ui.output_ui("edge_list_error_message")),
+            ui.input_text_area("edge_list_input", ui.span("Edge List", ui.output_ui("edge_list_error_message")),
                                "(0,1, 10),\n(1,2, 10),\n(2,0,20)", rows=10, autoresize=True)
         )
     if input.selectize_graph() == GraphType.CSV_FILE.value:
