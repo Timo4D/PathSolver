@@ -213,8 +213,13 @@ def graph_ui_server(input, output, session):
                     input.dark_mode_switch, current_node,
                     current_edges)
     def graph_plot():
+        if step_counter.get() == 3:
+            final_step = True
+        else:
+            final_step = False
+
         plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), current_node.get(),
-                   current_edges.get(), input.dark_mode_switch())
+                   current_edges.get(), input.dark_mode_switch(), final_step)
 
     tutorial_modal_server(input, output, session)
 
@@ -301,7 +306,7 @@ def render_distances(input):
         {"rows": [input.start_node()], "style": {"background-color": "green"}},
         {"rows": [input.target_node()], "style": {"background-color": "red"}},
     ]
-    return render.DataTable(distances_df.get(), width="100%", styles=styles)
+    return render.DataTable(distances_df.get().sort_values(by="Cost", ascending=True), width="100%", styles=styles)
 
 def handle_next_step(input):
     step = step_counter.get()
@@ -317,7 +322,7 @@ def handle_next_step(input):
         if not solution.get():
             solution.set(dijkstra_solution(G, input.start_node(), input.target_node()))
     elif step == 4:
-        show_solution(solution.get(), input)
+        show_solution(solution.get())
         step_explanation.set(TagList(""))
 
 
@@ -372,7 +377,8 @@ def visit_neighbors(df, G):
             "Now look at the possible neighbours", ui.br(),
             nodes_visited_text,
             "Lets calculate the cumulative distance to every neighbor and compare it to the Table.", ui.br(),
-            "If the distance is lower that whats already in the Table we need to update it, otherwise we won't change it"
+            "If the distance is lower that whats already in the Table we need to update it, otherwise we won't change it", ui.br(),
+            "The weights on the edges have been hidden. You need to use the Table below",
         )
     )
     step_counter.set(2)
@@ -405,8 +411,7 @@ def set_new_current_node(df, G, input):
         step_counter.set(step_counter.get() - 1)
     nodes_visited.set(nodes_visited.get() + [current_node.get()])
 
-def show_solution(solution, input):
-    # TODO: The user should need to input the correct path before being shown the correct solution
+def show_solution(solution):
     current_edges.set([list(edge) for edge in zip(solution, solution[1:])])
 
 

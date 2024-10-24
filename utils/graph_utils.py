@@ -3,10 +3,11 @@ import networkx as nx
 from networkx.classes import Graph, edges
 
 
-def dijkstra_solution(G: Graph, start:int, target:int, weight="weight"):
+def dijkstra_solution(G: Graph, start: int, target: int, weight="weight"):
     return nx.dijkstra_path(G, start, target, weight=weight)
 
-def plot_graph(G, start, target, seed, current_node=None, current_edges=None, dark_mode=None):
+
+def plot_graph(G, start, target, seed, current_node=None, current_edges=None, dark_mode=None, final_step=False):
     width: int = 3
 
     if current_edges is None:
@@ -38,7 +39,8 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None, da
     if current_edges:
         edge_color_map = []
         for edge in G.edges:
-            if tuple(edge) in [tuple(e) for e in current_edges] or tuple(edge[::-1]) in [tuple(e) for e in current_edges]:
+            if tuple(edge) in [tuple(e) for e in current_edges] or tuple(edge[::-1]) in [tuple(e) for e in
+                                                                                         current_edges]:
                 edge_color_map.append('tab:red')
             else:
                 edge_color_map.append('black')
@@ -59,7 +61,8 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None, da
         labels = {node: str(node) for node in G.nodes()}
         nx.draw_networkx_labels(G, pos, labels)
 
-    # Draw weights
-    edge_labels = nx.get_edge_attributes(G, 'weight')
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    if not final_step:
+        # Draw weights
+        edge_labels = nx.get_edge_attributes(G, 'weight')
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
     plt.axis('off')
