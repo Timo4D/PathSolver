@@ -1,0 +1,38 @@
+name: Deploy to Posit Connect
+
+on:
+  release:
+    types: [ published ]
+
+jobs:
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v3
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install rsconnect-python
+          pip install -r requirements.txt
+
+      - name: Add Account
+        env:
+          RSC_TOKEN: ${{ secrets.RSC_TOKEN }}
+          RSC_SECRET: ${{ secrets.RSC_SECRET }}
+          RSC_ACCOUNT: ${{ secrets.RSC_ACCOUNT }}
+          RSC_NAME: ${{secrets.NAME}}
+        run: |
+          rsconnect add --account $RSC_ACCOUNT --name $RSC_NAME --token $RSC_TOKEN --secret $RSC_SECRET
+
+      - name: Deploy to Posit Connect
+        run: |
+          rsconnect deploy shiny . --name gerstenhauer --title dijkstra
