@@ -35,4 +35,4 @@ jobs:
 
       - name: Deploy to Posit Connect
         run: |
-          rsconnect deploy shiny . --name gerstenhauer --title dijkstra
+          rsconnect deploy shiny . --name gerstenhauer --title dijkstra --new
