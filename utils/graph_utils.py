@@ -1,13 +1,15 @@
 import matplotlib.pyplot as plt
 import networkx as nx
-from networkx.classes import Graph, edges
+from networkx.classes import Graph
+
 
 
 def dijkstra_solution(G: Graph, start: int, target: int, weight="weight"):
     return nx.dijkstra_path(G, start, target, weight=weight)
 
 
-def plot_graph(G, start, target, seed, current_node=None, current_edges=None, dark_mode=None, final_step=False):
+def plot_graph(G, start, target, seed, distances=None, current_node=None, current_edges=None, dark_mode=None,
+               final_step=False):
     width: int = 3
 
     if current_edges is None:
@@ -55,11 +57,19 @@ def plot_graph(G, start, target, seed, current_node=None, current_edges=None, da
     if "label" in G.nodes[0]:
         nx.draw_networkx_labels(G, pos)
         labels = dict(sorted(nx.get_node_attributes(G, "label").items()))
-        label_pos = {node: (coords[0], coords[1] - 0.12) for node, coords in pos.items()}
+        label_pos = {node: (coords[0], coords[1] - 0.13) for node, coords in pos.items()}
         nx.draw_networkx_labels(G, label_pos, labels, font_color=default_color)
     else:
         labels = {node: str(node) for node in G.nodes()}
         nx.draw_networkx_labels(G, pos, labels)
+
+    # Draw Distances
+    if not distances["Cost"].empty:
+        distance_labels = distances["Cost"].replace(float('inf'), '∞').apply(
+            lambda x: int(x) if isinstance(x, float) else x)
+
+        label_pos = {node: (coords[0], coords[1] + 0.13) for node, coords in pos.items()}
+        nx.draw_networkx_labels(G, label_pos, distance_labels, font_color=default_color)
 
     if not final_step:
         # Draw weights
