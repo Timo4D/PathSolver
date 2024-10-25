@@ -6,8 +6,8 @@ from htmltools import TagList
 from shiny import ui, render, reactive
 
 from modules.djikstra_explanation import djikstra_explanation
-from modules.tutorial_modal import tutorial_modal, tutorial_modal_server
 from modules.solution_quiz import render_solution_quiz
+from modules.tutorial_modal import tutorial_modal, tutorial_modal_server
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
 from utils.graph_utils import plot_graph, dijkstra_solution
 from utils.icons import warning as warning_icon
@@ -229,7 +229,12 @@ def graph_ui_server(input, output, session):
     @reactive.event(input.submit_solution)
     def check_user_solution():
         user_input = input.user_solution().strip()
-        user_solution = [int(node) for node in user_input.split(",")]
+        try:
+            user_solution = [int(node) for node in user_input.split(",")]
+        except ValueError:
+            user_solution = None
+
+
         correct_solution = solution.get()
 
         if user_solution == correct_solution:
@@ -310,7 +315,7 @@ def render_distances(input):
         {"rows": [input.start_node()], "style": {"background-color": "green"}},
         {"rows": [input.target_node()], "style": {"background-color": "red"}},
     ]
-    return render.DataTable(distances_df.get().sort_values(by="Cost", ascending=True), width="100%", styles=styles)
+    return render.DataTable(distances_df.get(), width="100%", styles=styles)
 
 def handle_next_step(input):
     step = step_counter.get()
