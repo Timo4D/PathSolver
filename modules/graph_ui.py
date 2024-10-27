@@ -283,7 +283,7 @@ def update_graph_based_on_selection(input):
     elif input.selectize_graph() == GraphType.EDGE_LIST.value:
         edge_list_input = input.edge_list_input()
         if isinstance(edge_list_input, str):
-            result = generate_from_edge_list(edge_list_input)
+            result = generate_from_edge_list(input.edge_list_input())
             if isinstance(result, str):
                 invalid_edge_list.set(True)
                 step_explanation.set(TagList(result))
@@ -304,7 +304,7 @@ def render_graph_generator_settings(input):
     if input.selectize_graph() == GraphType.EDGE_LIST.value:
         return ui.TagList(
             ui.input_text_area("edge_list_input", ui.span("Edge List", ui.output_ui("edge_list_error_message")),
-                               "(0,1, 10),\n(1,2, 10),\n(2,0,20)", rows=10, autoresize=True)
+                               "0 1 10\n1 2 10\n2 0 20", rows=10, autoresize=True)
         )
     if input.selectize_graph() == GraphType.CSV_FILE.value:
         return ui.TagList(

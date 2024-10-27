@@ -1,4 +1,3 @@
-import ast
 import random
 
 import networkx as nx
@@ -33,25 +32,37 @@ def generate_koot_example():
     return G
 
 
+def generate_from_real_edge_list(edgelist: str):
+    edgelist_correct = "\n".join(
+        [f"{u} {v} {{'weight':{w}}}" for u, v, w in (line.split() for line in edgelist.split('\n'))])
+
+    edgelist_lines = edgelist_correct.split('\n')
+    G = nx.parse_edgelist(edgelist_lines, nodetype=int)
+    print(edgelist_lines)
+
+    print(G)
+
+    for line in nx.generate_edgelist(G):
+        print(line)
+
+    if nx.is_connected(G):
+        return G
+    else:
+        return "Graph is not connected"
+
+
 def generate_from_edge_list(edgelist: str):
     try:
-        edges = ast.literal_eval(f'[{edgelist}]')
-    except (SyntaxError, ValueError) as e:
-        print(f"Error parsing edge list: {e}")
-        return "Invalid Edge List"
+        edgelist_correct = "\n".join(
+            [f"{u} {v} {{'weight':{w}}}" for u, v, w in (line.split() for line in edgelist.split('\n'))])
 
-    converted_edges = []
-    for edge in edges:
-        if len(edge) == 3:
-            u, v, w = edge
-            converted_edges.append((u, v, {'weight': w}))
-        elif len(edge) == 2:
-            u, v = edge
-            converted_edges.append((u, v))
+        edgelist_lines = edgelist_correct.split('\n')
+        G = nx.parse_edgelist(edgelist_lines, nodetype=int)
+    except ValueError:
+        return "Edgelist invalid"
 
-    # try:
-    G = nx.from_edgelist(converted_edges)
-    # except
+    for line in nx.generate_edgelist(G):
+        print(line)
 
     if nx.is_connected(G):
         return G
