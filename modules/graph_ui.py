@@ -4,6 +4,7 @@ import networkx as nx
 import pandas as pd
 from htmltools import TagList
 from shiny import ui, render, reactive
+from shiny.types import FileInfo
 
 from modules.djikstra_explanation import djikstra_explanation
 from modules.solution_quiz import render_solution_quiz
@@ -245,6 +246,32 @@ def graph_ui_server(input, output, session):
         else:
             step_explanation.set(TagList("Sorry, your solution is incorrect. Please try again."))
 
+    @reactive.calc
+    def parsed_edge_list():
+        file: list[FileInfo] | None = input.edge_list_file()
+        if file is None:
+            print("File is None")
+            return None
+        else:
+            print(f"File: {file}")
+            return file[0]["datapath"]
+
+    @reactive.Effect
+    def use_parsed_edge_list():
+        edge_list = parsed_edge_list()
+        if edge_list is not None:
+            print(edge_list)
+            with open('/home/timo/shiny/dijkstra/edgelist.txt', 'r') as file:
+                edge_list_str = file.read()
+            print(edge_list_str)
+            result = generate_from_edge_list(edge_list_str)
+            if isinstance(result, str):
+                invalid_edge_list.set(True)
+                step_explanation.set(TagList(result))
+            else:
+                invalid_edge_list.set(False)
+                graph.set(result)
+
 
 def create_progress_bar():
     return TagList(
@@ -308,7 +335,7 @@ def render_graph_generator_settings(input):
         )
     if input.selectize_graph() == GraphType.CSV_FILE.value:
         return ui.TagList(
-            ui.input_file("test", "Upload a .csv file")
+            ui.input_file("edge_list_file", ui.span("Upload an edge list", ui.output_ui("edge_list_error_message")))
         )
 
 def render_distances(input):
