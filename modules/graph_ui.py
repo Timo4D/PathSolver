@@ -353,11 +353,15 @@ def render_graph_generator_settings(input):
         )
 
 def render_distances(input):
-    styles = [
-        {"rows": [int(input.start_node())], "style": {"background-color": "green"}},
-        {"rows": [int(input.target_node())], "style": {"background-color": "red"}},
-    ]
-    return render.DataTable(distances_df.get(), width="100%", styles=styles)
+    try:
+        styles = [
+            {"rows": [int(input.start_node())], "style": {"background-color": "green"}},
+            {"rows": [int(input.target_node())], "style": {"background-color": "red"}},
+        ]
+        return render.DataTable(distances_df.get(), width="100%", styles=styles)
+    except TypeError:
+        df = pd.DataFrame({"Error": ["Invalid data"]})
+        return render.DataTable(df, width="100%")
 
 def handle_next_step(input):
     step = step_counter.get()
