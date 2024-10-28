@@ -25,6 +25,8 @@ nodes_visited = reactive.Value([])
 state_history = reactive.Value([])
 invalid_edge_list = reactive.Value(False)
 solution = reactive.Value()
+start_node_error = reactive.Value(False)
+target_node_error = reactive.Value(False)
 
 
 class GraphType(Enum):
@@ -41,8 +43,10 @@ def graph_ui():
                 tutorial_modal(),
                 graph_selection_ui(),
                 ui.output_ui("graph_generator_settings"),
-                ui.input_numeric("start_node", "Start Node", value=0, min=0),
-                ui.input_numeric("target_node", "Target Node", value=1, min=0),
+                ui.input_numeric("start_node", ui.span("Start Node", ui.output_ui("start_node_error_message")), value=0,
+                                 min=0),
+                ui.input_numeric("target_node", ui.span("Target Node", ui.output_ui("target_node_error_message")),
+                                 value=1, min=0),
                 ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
             ),
             ui.output_ui("explain"),
@@ -205,6 +209,16 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
+    def start_node_error_message():
+        return ui.tooltip(warning_icon, "Your input is invalid") if start_node_error.get() else None
+
+    @output
+    @render.ui
+    def target_node_error_message():
+        return ui.tooltip(warning_icon, "Your input is invalid") if target_node_error.get() else None
+
+    @output
+    @render.ui
     def edge_list_error_message():
         return ui.tooltip(warning_icon, "Your input is invalid") if invalid_edge_list.get() else None
         # return ui.p("Your Input edge list is not Valid!",
@@ -340,8 +354,8 @@ def render_graph_generator_settings(input):
 
 def render_distances(input):
     styles = [
-        {"rows": [input.start_node()], "style": {"background-color": "green"}},
-        {"rows": [input.target_node()], "style": {"background-color": "red"}},
+        {"rows": [int(input.start_node())], "style": {"background-color": "green"}},
+        {"rows": [int(input.target_node())], "style": {"background-color": "red"}},
     ]
     return render.DataTable(distances_df.get(), width="100%", styles=styles)
 
@@ -367,7 +381,13 @@ def initialize_step(input, df, G):
     step_explanation.set(TagList("First set distance to start node to 0"))
     if not df.empty:
         start_node = input.start_node()
-        if 0 <= start_node < len(df):
+        target_node = input.target_node()
+        if start_node in G.nodes:
+            start_node_error.set(False)
+        else:
+            start_node_error.set(True)
+
+        if target_node in G.nodes:
             df.iloc[start_node, 1] = 0
             if "label" in G.nodes[0]:
                 df.iloc[start_node, 2] = nx.get_node_attributes(G, "label")[start_node]
@@ -377,8 +397,11 @@ def initialize_step(input, df, G):
             nodes_visited.set(nodes_visited.get() + [start_node])
             current_node.set(start_node)
             step_counter.set(1)
+            target_node_error.set(False)
         else:
-            print(f"Invalid start node: {start_node}")
+            target_node_error.set(True)
+
+
 
 def visit_neighbors(df, G):
     prev_cost = df.iloc[current_node.get(), 1]
