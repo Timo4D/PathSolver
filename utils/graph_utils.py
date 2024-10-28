@@ -64,11 +64,13 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
         nx.draw_networkx_labels(G, pos, labels)
 
     # Draw Distances
-    if not distances["Cost"].empty:
+    if distances is not None and not distances["Cost"].empty:
         distance_labels = distances["Cost"].replace(float('inf'), '∞').apply(
             lambda x: int(x) if isinstance(x, float) else x)
 
         label_pos = {node: (coords[0], coords[1] + 0.13) for node, coords in pos.items()}
+        # Ensure the node exists in pos before drawing the label
+        distance_labels = {node: label for node, label in distance_labels.items() if node in pos}
         nx.draw_networkx_labels(G, label_pos, distance_labels, font_color=default_color)
 
     if not final_step:

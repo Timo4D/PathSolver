@@ -38,12 +38,9 @@ def generate_from_real_edge_list(edgelist: str):
 
     edgelist_lines = edgelist_correct.split('\n')
     G = nx.parse_edgelist(edgelist_lines, nodetype=int)
-    print(edgelist_lines)
+    # print(edgelist_lines)
 
-    print(G)
 
-    for line in nx.generate_edgelist(G):
-        print(line)
 
     if nx.is_connected(G):
         return G
