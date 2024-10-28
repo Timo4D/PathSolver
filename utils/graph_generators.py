@@ -55,7 +55,7 @@ def generate_from_edge_list(edgelist: str):
 
         edgelist_lines = edgelist_correct.split('\n')
         G = nx.parse_edgelist(edgelist_lines, nodetype=int)
-    except ValueError:
+    except (ValueError, SyntaxError, TypeError):
         return "Edgelist invalid"
 
     for line in nx.generate_edgelist(G):
