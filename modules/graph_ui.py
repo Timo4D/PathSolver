@@ -390,6 +390,7 @@ def initialize_step(input, df, G):
             start_node_error.set(False)
         else:
             start_node_error.set(True)
+            return
 
         if target_node in G.nodes:
             df.iloc[start_node, 1] = 0
@@ -441,8 +442,8 @@ def visit_neighbors(df, G):
             "Now look at the possible neighbours", ui.br(),
             nodes_visited_text,
             "Lets calculate the cumulative distance to every neighbor and compare it to the Table.", ui.br(),
-            "If the distance is lower that whats already in the Table we need to update it, otherwise we won't change it", ui.br(),
-            "The weights on the edges have been hidden. You need to use the Table below",
+            "If the distance is lower that whats already calculated we need to update it, otherwise we won't change it",
+            ui.br(),
         )
     )
     step_counter.set(2)
