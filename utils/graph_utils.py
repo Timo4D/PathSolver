@@ -38,6 +38,15 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
         else:
             node_color_map.append('tab:blue')
 
+    nx.draw_networkx_nodes(G, pos, node_color=node_color_map, node_size=400)
+    nx.draw_networkx_labels(G, pos)
+
+    # Draw labels
+    if "label" in G.nodes[0]:
+        labels = dict(sorted(nx.get_node_attributes(G, "label").items()))
+        label_pos = {node: (coords[0], coords[1] - 0.13) for node, coords in pos.items()}
+        nx.draw_networkx_labels(G, label_pos, labels, font_color=default_color)
+
     if current_edges:
         edge_color_map = []
         for edge in G.edges:
@@ -50,18 +59,6 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
         nx.draw_networkx_edges(G, pos, edge_color=edge_color_map, width=width)
     else:
         nx.draw_networkx_edges(G, pos, edge_color=default_color, width=width)
-
-    nx.draw_networkx_nodes(G, pos, node_color=node_color_map, node_size=400)
-
-    # Draw labels
-    if "label" in G.nodes[0]:
-        nx.draw_networkx_labels(G, pos)
-        labels = dict(sorted(nx.get_node_attributes(G, "label").items()))
-        label_pos = {node: (coords[0], coords[1] - 0.13) for node, coords in pos.items()}
-        nx.draw_networkx_labels(G, label_pos, labels, font_color=default_color)
-    else:
-        labels = {node: str(node) for node in G.nodes()}
-        nx.draw_networkx_labels(G, pos, labels)
 
     # Draw Distances
     if distances is not None and not distances["Cost"].empty:

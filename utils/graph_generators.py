@@ -50,10 +50,7 @@ def generate_from_real_edge_list(edgelist: str):
 
 def generate_from_edge_list(edgelist: str):
     try:
-        edgelist_correct = "\n".join(
-            [f"{u} {v} {{'weight':{w}}}" for u, v, w in (line.split() for line in edgelist.split('\n'))])
-
-        edgelist_lines = edgelist_correct.split('\n')
+        edgelist_lines = [f"{u} {v} {{'weight':{w}}}" for u, v, w in (line.split() for line in edgelist.split('\n'))]
         G = nx.parse_edgelist(edgelist_lines, nodetype=int)
     except (ValueError, SyntaxError, TypeError):
         return "Edgelist invalid"
