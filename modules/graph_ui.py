@@ -382,7 +382,7 @@ def handle_next_step(input):
 
 
 def initialize_step(input, df, G):
-    step_explanation.set(TagList("First set distance to start node to 0"))
+    step_explanation.set(TagList("First set distance to start node to 0 and every other node to infinity"))
     if not df.empty:
         start_node = input.start_node()
         target_node = input.target_node()
@@ -434,15 +434,16 @@ def visit_neighbors(df, G):
     nodes_visited_text = None
     if nodes_visited_without_current:
         nodes_visited_text = TagList(
-            f"We will leave {nodes_visited_without_current} out as we have already visited", ui.br()
+            f"We will leave nodes {nodes_visited_without_current} out as we have already visited them", ui.br()
         )
 
     step_explanation.set(
         TagList(
-            "Now look at the possible neighbours", ui.br(),
+            "Now look at the possible unvisited neighbours", ui.br(),
             nodes_visited_text,
-            "Lets calculate the cumulative distance to every neighbor and compare it to the Table.", ui.br(),
-            "If the distance is lower that whats already calculated we need to update it, otherwise we won't change it",
+            "You need to calculate the cost of all unvisited neighbours. To do this add the distance to your current node + the weight of the edge.",
+            ui.br(),
+            "If the weight is lower that whats already calculated we need to update it, otherwise we won't change it",
             ui.br(),
         )
     )
@@ -460,14 +461,18 @@ def set_new_current_node(df, G, input):
             TagList(
                 "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it",
                 ui.br(),
-                "You now have to enter your solution of the fastest path in new Box below. If it is correct you will see the path on the graph."
+                "You now have to enter your solution of the fastest path in new Box below. If it is correct you will see the path on the graph.",
+                ui.br(),
+                "The weights of the edges are now hidden, so try to get the solution with help of the table below.",
+                ui.br(),
+                "The Dijkstra Algorithm would trace the way from thr Target node via its previus node until it arrives at the start node",
             )
         )
         step_counter.set(step_counter.get() + 1)
     else:
         step_explanation.set(
             TagList(
-                f"You can see that {min_cost_node} has the shortest path to the next node so lets make {current_node.get()} our new Node. ",
+                f"You can see that {min_cost_node} is the node with the lowest cost that we have not visited yet, so {current_node.get()} is our new Node. ",
                 ui.br(),
                 f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again",
                 ui.br()
