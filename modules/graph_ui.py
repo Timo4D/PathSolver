@@ -1,4 +1,5 @@
 from enum import Enum
+from operator import contains
 
 import networkx as nx
 import pandas as pd
@@ -353,15 +354,38 @@ def render_graph_generator_settings(input):
         )
 
 def render_distances(input):
-    try:
-        styles = [
-            {"rows": [int(input.start_node())], "style": {"background-color": "green"}},
-            {"rows": [int(input.target_node())], "style": {"background-color": "red"}},
-        ]
-        return render.DataTable(distances_df.get(), width="100%", styles=styles)
-    except TypeError:
-        df = pd.DataFrame({"Error": ["Invalid data"]})
-        return render.DataTable(df, width="100%")
+    df = distances_df.get()
+
+    if contains(df.columns, "Node"):
+        try:
+            index_start = int(df.index[df['Node'].astype(int) == int(input.start_node())].item())
+            index_target = int(df.index[df['Node'].astype(int) == int(input.target_node())].item())
+        except ValueError:
+            df = pd.DataFrame({"Error": ["Selected Node not on Graph"]})
+            return render.DataTable(df, width="100%")
+
+        try:
+            styles = [
+                {"rows": index_start, "style": {"background-color": "green"}},
+                {"rows": index_target, "style": {"background-color": "red"}},
+            ]
+            return render.DataTable(distances_df.get(), width="100%", styles=styles)
+        except TypeError:
+            df = pd.DataFrame({"Error": ["Invalid data"]})
+            return render.DataTable(df, width="100%")
+
+    else:
+        try:
+            styles = [
+                {"rows": [int(input.start_node())], "style": {"background-color": "green"}},
+                {"rows": [int(input.target_node())], "style": {"background-color": "red"}},
+            ]
+            return render.DataTable(distances_df.get(), width="100%", styles=styles)
+        except TypeError:
+            df = pd.DataFrame({"Error": ["Invalid data"]})
+            return render.DataTable(df, width="100%")
+
+
 
 def handle_next_step(input):
     step = step_counter.get()
