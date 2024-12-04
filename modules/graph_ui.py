@@ -72,6 +72,7 @@ def graph_selection_ui():
         selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
     )
 
+
 def distances_ui():
     return ui.card(
         ui.card_header("Distances between nodes"),
@@ -227,8 +228,7 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.plot
-    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node,
-                    input.dark_mode_switch, current_node,
+    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node, current_node,
                     current_edges)
     def graph_plot():
         if step_counter.get() == 3:
@@ -237,8 +237,7 @@ def graph_ui_server(input, output, session):
             final_step = False
 
         plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), distances_df.get(),
-                   current_node.get(),
-                   current_edges.get(), input.dark_mode_switch(), final_step)
+                   current_node.get(), final_step)
 
     tutorial_modal_server(input, output, session)
 
@@ -250,7 +249,6 @@ def graph_ui_server(input, output, session):
             user_solution = [int(node) for node in user_input.split(",")]
         except ValueError:
             user_solution = None
-
 
         correct_solution = solution.get()
 
@@ -314,6 +312,7 @@ def create_explanation_ui():
         ui.p(step_explanation.get(), style="margin-top: 0;"),
     )
 
+
 def update_graph_based_on_selection(input):
     if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
         if input.k_slider() > input.n_slider():
@@ -353,6 +352,7 @@ def render_graph_generator_settings(input):
             ui.input_file("edge_list_file", ui.span("Upload an edge list", ui.output_ui("edge_list_error_message")))
         )
 
+
 def render_distances(input):
     df = distances_df.get()
 
@@ -384,7 +384,6 @@ def render_distances(input):
         except TypeError:
             df = pd.DataFrame({"Error": ["Invalid data"]})
             return render.DataTable(df, width="100%")
-
 
 
 def handle_next_step(input):
@@ -431,7 +430,6 @@ def initialize_step(input, df, G):
             target_node_error.set(True)
 
 
-
 def visit_neighbors(df, G):
     prev_cost = df.iloc[current_node.get(), 1]
     neighbors, edges = [], []
@@ -473,6 +471,7 @@ def visit_neighbors(df, G):
     )
     step_counter.set(2)
 
+
 def set_new_current_node(df, G, input):
     current_edges.set([])
 
@@ -505,7 +504,6 @@ def set_new_current_node(df, G, input):
         step_counter.set(step_counter.get() - 1)
     nodes_visited.set(nodes_visited.get() + [current_node.get()])
 
+
 def show_solution(solution):
     current_edges.set([list(edge) for edge in zip(solution, solution[1:])])
-
-

@@ -8,10 +8,9 @@ def dijkstra_solution(G: Graph, start: int, target: int, weight="weight"):
     return nx.dijkstra_path(G, start, target, weight=weight)
 
 
-def plot_graph(G, start, target, seed, distances=None, current_node=None, current_edges=None, dark_mode=None,
+def plot_graph(G, start, target, seed, distances=None, current_node=None, current_edges=None, dark_mode=False,
                final_step=False):
     width: int = 3
-
     if current_edges is None:
         current_edges = []
     if not G:

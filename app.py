@@ -1,4 +1,4 @@
-from shiny import App, render, ui
+from shiny import App, ui
 
 from modules.graph_ui import graph_ui, graph_ui_server
 from modules.project_information import project_information
@@ -20,19 +20,6 @@ simple_graph = ui.page_fluid(
 app_ui = ui.page_navbar(
     ui.nav_panel("Startseite", graph_ui()),
     ui.nav_panel("Über das Projekt", project_information),
-
-    ui.nav_spacer(),
-    ui.nav_control(ui.input_selectize(
-        "select_lang",
-        label=None,
-        choices={
-            "lang_ger": "German 🇩🇪",
-            "lang_eng": "English 🇺🇸 🇬🇧"
-        },
-        selected="lang_ger",
-        width="auto",
-    )),
-    ui.nav_control(ui.input_dark_mode(id="dark_mode_switch", mode="light")),
     title= "The Dijkstra Algorithm"
 )
 
