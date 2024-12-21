@@ -1,5 +1,6 @@
 from shiny import App, ui
 
+from modules.dijkstra_info import dijkstra_info
 from modules.graph_ui import graph_ui, graph_ui_server
 from modules.project_information import project_information
 
@@ -18,8 +19,9 @@ simple_graph = ui.page_fluid(
 )
 
 app_ui = ui.page_navbar(
-    ui.nav_panel("Startseite", graph_ui()),
-    ui.nav_panel("Über das Projekt", project_information),
+    ui.nav_panel("Start", graph_ui()),
+    ui.nav_panel("About the Project", project_information),
+    ui.nav_panel("More about the Dijkstra-Algorithm", dijkstra_info),
     title= "The Dijkstra Algorithm"
 )
 

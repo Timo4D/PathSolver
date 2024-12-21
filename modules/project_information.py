@@ -1,19 +1,18 @@
 from htmltools import TagList, tags
 
 project_information = TagList(
-    tags.h1("Dijkstra"),
-    tags.h2("WORK IN PROGRESS"),
-    tags.p("Diese Anwendung wurde im Rahmen einer Bachelorarbeit an der Hochschule Aalen entwickelt. "),
+    tags.p("This application was developed as part of a bachelor's thesis at Aalen University."),
     tags.p(
-        "Ziel des Projekts war es, eine benutzerfreundliche und interaktive Visualisierung des Dijkstra-Algorithmus bereitzustellen, die speziell für den didaktischen Einsatz in Vorlesungen und Übungen geeignet ist."),
+        "The goal of the project was to provide a user-friendly and interactive visualization of the Dijkstra algorithm, specifically suitable for didactic use in lectures and exercises."),
     tags.p(
-        "Die Anwendung ermöglicht es, die Funktionsweise des Dijkstra-Algorithmus durch schrittweise Erläuterungen und farbliche Hervorhebungen direkt im Graphen nachzuvollziehen."),
+        "The application allows users to understand the functionality of the Dijkstra algorithm through step-by-step explanations and color highlights directly in the graph."),
     tags.p(
-        "Lernende und Lehrende können sowohl vordefinierte als auch selbst erstellte Graphen nutzen, um den Algorithmus zu erforschen und anzuwenden."),
+        "Learners and teachers can use both predefined and self-created graphs to explore and apply the algorithm."),
     tags.p(
-        "Technisch basiert das Projekt auf der Python-Bibliothek Shiny for Python, kombiniert mit NetworkX für die Graphendarstellung und -analyse."),
+        "The project is based on the Python library Shiny for Python, combined with NetworkX for graph representation and analysis."),
     tags.p(
-        "Die Entwicklung der Anwendung wurde durch Best Practices aus der Forschung zur Algorithmus-Visualisierung geleitet."),
+        "The development of the application was guided by best practices from research on algorithm visualization."),
     tags.p(
-        "Das Projekt steht exemplarisch für die Verbindung von Informatik und Pädagogik und bietet eine innovative Lösung zur Vermittlung komplexer algorithmischer Konzepte"),
+        "The project exemplifies the connection between computer science and pedagogy and offers an innovative solution for conveying complex algorithmic concepts."),
+    tags.p("You can find the sourcecode for this App on https://github.com/Timo4D/Dijkstra")
 )
