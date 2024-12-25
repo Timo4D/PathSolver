@@ -17,7 +17,7 @@ def tutorial_modal_server(input, output, session):
 
             ui.h4("Step 1"),
             ui.output_ui("select_grap_image"),
-
+            ui.br(),
             "You start by choosing a graph from the following options:", ui.br(),
 
             ui.accordion(
@@ -31,41 +31,54 @@ def tutorial_modal_server(input, output, session):
                                    ui.p(),
                                    "An edge is the connection between nodes. You can create edges by defining a tuple with three integers for example:",
                                    ui.br(),
-                                   "(0, 1, 10)", ui.br(),
-                                   "This will create a connection between nodes 0 and 1 with a distance of 10.", ui.br(),
+                                   "0, 1, 10", ui.br(),
+                                   "This will create a connection between nodes 0 and 1 with a distance of 10.",
+                                   ui.br(),
                                    ui.p(),
-                                   "Create multiple edges by separating each tuple with a ','.", ui.br(),
+                                   "Create multiple edges by defining each tuple in its own row", ui.br(),
                                    "Make sure that all of the network is connected and there are no loose nodes or multiple unconnected graphs!",
                                    ui.br(),
                                    "Nodes that do not exist yet will be automatically created."
-                                   )
+                                   ),
+                ui.accordion_panel("Upload Edgelist",
+                                   "This Lets you upload a text file contain an plist to import a remade graph",
+                                   ui.br(),
+                                   "For it to work the textfile must have the same syntax as the edge list form the Import from Edgelist option."
+                                   ),
             ),
 
             ui.hr(),
             ui.h4("Step 2"),
-            ui.output_ui("start_targe_seed_image"),
+            ui.output_ui("start_targe_seed_image"), ui.br(),
             "After choosing a graph you can select the start and the target node.", ui.br(),
             "The Dijkstra's algorithm will then try to find the fastest path from the start node to the target node.",
             ui.br(),
             "If you want to change the layout of you graph you simply need to change the layout seed until you find a good looking layout.",
             ui.hr(),
             ui.h4("Step 3"),
-            ui.output_ui("prev_next_image", height="100%", width="100%"),
+            ui.output_ui("prev_next_image", height="100%", width="100%"), ui.br(),
             "To see each the algorithm do its work press the next step button. Each step will also be explained on the card below.",
             ui.br(),
             "If you like to look at a previous step, simply press the previous step button.", ui.br(),
             "During this time you can follow what the algorithm already figured out by looking at the distances between nodes table or the visited nodes card.",
             ui.hr(),
             ui.h4("Step 4"),
-            "After the algorithm is done it will highlight the fastest way possible for you on the graph and you.",
+            ui.output_ui("quiz_image"), ui.br(),
+            "After the algorithm is done you will be asked to enter the fasted route from the Start Node to the Target Node.",
             ui.br(),
-            "At that point you can either go back with the previous step button and review the steps again or start over with a new graph.",
+            "Only when you enter the correct answer will the Program show you the fasted path in the Graphic",
             title="The Dijkstra Algorithm",
             easy_close=True,
             footer=None,
             size='l'
         )
         ui.modal_show(m)
+
+    @render.ui
+    def quiz_image():
+        return ui.tags.img(
+            src="https://cdn.discordapp.com/attachments/1321459358768304158/1321463909676351539/image.png?ex=676d54ab&is=676c032b&hm=1ed6ee7ee23d5cb403d51a5c0cef22da83319aee9cde03f0d861bcb7e25f361c&",
+            width="80%")
 
     @render.ui
     def select_grap_image():
