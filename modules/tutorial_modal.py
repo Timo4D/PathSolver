@@ -1,6 +1,6 @@
-from shiny import reactive, ui, render
-from shiny.types import ImgData
 from pathlib import Path
+
+from shiny import reactive, ui, render
 
 directory = Path("./images").resolve()
 
@@ -16,12 +16,12 @@ def tutorial_modal_server(input, output, session):
         m = ui.modal(
 
             ui.h4("Step 1"),
-            ui.output_image("select_grap_image"),
+            ui.output_ui("select_grap_image"),
 
             "You start by choosing a graph from the following options:", ui.br(),
 
             ui.accordion(
-                ui.accordion_panel("Deutschland Beispiel", "A simple example with some german cities."),
+                ui.accordion_panel("Germany Example", "A simple example with some german cities."),
                 ui.accordion_panel("Random Graph",
                                    "This works by generating a connected Watts–Strogatz small-world graph.", ui.br(),
                                    "You can tweak the parameters using the sliders."
@@ -43,14 +43,14 @@ def tutorial_modal_server(input, output, session):
 
             ui.hr(),
             ui.h4("Step 2"),
-            ui.output_image("start_targe_seed_image"),
+            ui.output_ui("start_targe_seed_image"),
             "After choosing a graph you can select the start and the target node.", ui.br(),
             "The Dijkstra's algorithm will then try to find the fastest path from the start node to the target node.",
             ui.br(),
             "If you want to change the layout of you graph you simply need to change the layout seed until you find a good looking layout.",
             ui.hr(),
             ui.h4("Step 3"),
-            ui.output_image("prev_next_image", height="100%", width="100%"),
+            ui.output_ui("prev_next_image", height="100%", width="100%"),
             "To see each the algorithm do its work press the next step button. Each step will also be explained on the card below.",
             ui.br(),
             "If you like to look at a previous step, simply press the previous step button.", ui.br(),
@@ -67,17 +67,20 @@ def tutorial_modal_server(input, output, session):
         )
         ui.modal_show(m)
 
-    @render.image
+    @render.ui
     def select_grap_image():
-        img: ImgData = {"src": str(directory / "select_graph.png"), "width": "80%"}
-        return img
+        return ui.tags.img(
+            src="https://cdn.discordapp.com/attachments/1321459358768304158/1321459404792659988/select_graph.png?ex=676d5079&is=676bfef9&hm=03fb3f3b5104c7eb00a0bd81b136412d7640bdd333aef32239026424956ab2d7&",
+            width="80%")
 
-    @render.image
+    @render.ui
     def start_targe_seed_image():
-        img: ImgData = {"src": str(directory / "start_target_seed.png"), "width": "40%"}
-        return img
+        return ui.tags.img(
+            src="https://cdn.discordapp.com/attachments/1321459358768304158/1321459405199380551/start_target_seed.png?ex=676d5079&is=676bfef9&hm=97078623fe9fee7ec57e90766127d736a41421d32f7d75da1419d6c3fad6d3fe&",
+            width="40%")
 
-    @render.image
+    @render.ui
     def prev_next_image():
-        img: ImgData = {"src": str(directory / "prev_next.png"), "width": "100%"}
-        return img
+        return ui.tags.img(
+            src="https://cdn.discordapp.com/attachments/1321459358768304158/1321459404557520957/prev_next.png?ex=676d5079&is=676bfef9&hm=5e17398f1f24117237dc203241c84b3793ce51960944c3d9d8eecf302769d083&",
+            width="100%")

@@ -66,7 +66,7 @@ def graph_selection_ui():
         "selectize_graph",
         "Select a Graph",
         {GraphType.RANDOM_GRAPH.value: "Random Graph",
-         GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Deutschland Beispiel",
+         GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Germany Example",
          GraphType.EDGE_LIST.value: "Import from Edgelist",
          GraphType.CSV_FILE.value: "Upload a CSV file"},
         selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
