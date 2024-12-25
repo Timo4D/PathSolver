@@ -61,6 +61,8 @@ def tutorial_modal_server(input, output, session):
             ui.br(),
             "If you like to look at a previous step, simply press the previous step button.", ui.br(),
             "During this time you can follow what the algorithm already figured out by looking at the distances between nodes table or the visited nodes card.",
+            ui.br(),
+            "It is exacted and normal for the Algorithm to repeat steps 1 and 2 until it finds the fasts route.",
             ui.hr(),
             ui.h4("Step 4"),
             ui.output_ui("quiz_image"), ui.br(),
