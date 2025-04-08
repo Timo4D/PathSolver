@@ -237,7 +237,7 @@ def graph_ui_server(input, output, session):
             final_step = False
 
         plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), distances_df.get(),
-                   current_node.get(), final_step)
+                   current_node.get(), current_edges.get(), final_step)
 
     tutorial_modal_server(input, output, session)
 

@@ -56,19 +56,6 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
     else:
         nx.draw_networkx_edges(G, pos, edge_color=default_color, width=width)
 
-    # if current_edges:
-    #     edge_color_map = []
-    #     for edge in G.edges:
-    #         if tuple(edge) in [tuple(e) for e in current_edges] or tuple(edge[::-1]) in [tuple(e) for e in
-    #                                                                                      current_edges]:
-    #             edge_color_map.append('tab:red')
-    #         else:
-    #             edge_color_map.append('black')
-    #
-    #     nx.draw_networkx_edges(G, pos, edge_color=edge_color_map, width=width)
-    # else:
-    #     nx.draw_networkx_edges(G, pos, edge_color=default_color, width=width)
-
     # Draw Distances
     if distances is not None and not distances["Cost"].empty:
         distance_labels = distances["Cost"].replace(float('inf'), '∞').apply(
