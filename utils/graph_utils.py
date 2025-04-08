@@ -11,10 +11,12 @@ def dijkstra_solution(G: Graph, start: int, target: int, weight="weight"):
 def plot_graph(G, start, target, seed, distances=None, current_node=None, current_edges=None, dark_mode=False,
                final_step=False):
     width: int = 3
-    if current_edges is None:
+    if current_edges is None or not isinstance(current_edges, (list, tuple)):
         current_edges = []
     if not G:
         return None
+
+    current_edges_set = {(u, v) for u, v in current_edges} | {(v, u) for u, v in current_edges}
 
     pos = nx.spring_layout(G, seed=seed)
 
@@ -46,18 +48,26 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
         label_pos = {node: (coords[0], coords[1] - 0.13) for node, coords in pos.items()}
         nx.draw_networkx_labels(G, label_pos, labels, font_color=default_color)
 
+    # Verbesserte Edge-Verarbeitung
     if current_edges:
-        edge_color_map = []
-        for edge in G.edges:
-            if tuple(edge) in [tuple(e) for e in current_edges] or tuple(edge[::-1]) in [tuple(e) for e in
-                                                                                         current_edges]:
-                edge_color_map.append('tab:red')
-            else:
-                edge_color_map.append('black')
-
+        edge_color_map = ['tab:red' if (u, v) in current_edges_set else default_color
+                          for u, v in G.edges]
         nx.draw_networkx_edges(G, pos, edge_color=edge_color_map, width=width)
     else:
         nx.draw_networkx_edges(G, pos, edge_color=default_color, width=width)
+
+    # if current_edges:
+    #     edge_color_map = []
+    #     for edge in G.edges:
+    #         if tuple(edge) in [tuple(e) for e in current_edges] or tuple(edge[::-1]) in [tuple(e) for e in
+    #                                                                                      current_edges]:
+    #             edge_color_map.append('tab:red')
+    #         else:
+    #             edge_color_map.append('black')
+    #
+    #     nx.draw_networkx_edges(G, pos, edge_color=edge_color_map, width=width)
+    # else:
+    #     nx.draw_networkx_edges(G, pos, edge_color=default_color, width=width)
 
     # Draw Distances
     if distances is not None and not distances["Cost"].empty:

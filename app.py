@@ -22,7 +22,7 @@ app_ui = ui.page_navbar(
     ui.nav_panel("Start", graph_ui()),
     ui.nav_panel("About the Project", project_information),
     ui.nav_panel("More about the Dijkstra-Algorithm", dijkstra_info),
-    title="The Dijkstra Algorithm by Timo Gerstenhauer"
+    title="PathSolver by Timo Gerstenhauer"
 )
 
 

@@ -50,9 +50,9 @@ def graph_ui():
                                  value=1, min=0),
                 ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
             ),
-            ui.output_ui("explain"),
-            ui.output_ui("progress_bar"),
             ui.output_plot("graph_plot"),
+            ui.output_ui("progress_bar"),
+            ui.output_ui("explain"),
             ui.row(
                 ui.column(6, ui.output_ui("render_solution_quiz_ui"), distances_ui()),
                 ui.column(6, visited_nodes_ui(), algorithm_explanation_ui())
