@@ -1,16 +1,16 @@
 from shiny import App, render, ui
 
-app_ui = ui.page_fluid(
-    ui.panel_title("Hello Shiny!"),
-    ui.input_slider("n", "N", 0, 100, 20),
-    ui.output_text_verbatim("txt"),
+from modules.graph_ui import graph_ui, graph_ui_server
+
+app_ui = ui.page_navbar(
+    ui.nav_panel("Home", graph_ui()),
+    ui.nav_panel("About the Project"),
+    title="PathSolver",
 )
 
 
 def server(input, output, session):
-    @render.text
-    def txt():
-        return f"n*2 is {input.n() * 2}"
+    graph_ui_server(input, output, session)
 
 
 app = App(app_ui, server)
