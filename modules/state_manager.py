@@ -1,0 +1,92 @@
+"""State management for PathSolver application."""
+
+import pandas as pd
+import networkx as nx
+from shiny import reactive
+from htmltools import TagList
+
+from constants import INITIAL_EXPLANATION
+
+
+class StateManager:
+    """Manages all reactive state for the PathSolver application."""
+    
+    def __init__(self):
+        # Graph and algorithm state
+        self.distances_df = reactive.Value(pd.DataFrame())
+        self.graph = reactive.Value(nx.Graph())
+        self.seed = reactive.Value(1)
+        self.solution = reactive.Value()
+        
+        # Algorithm progress state
+        self.step_counter = reactive.Value(0)
+        self.current_node = reactive.Value(None)
+        self.current_edges = reactive.Value([])
+        self.distance = reactive.Value(0)
+        self.nodes_visited = reactive.Value([])
+        
+        # UI state
+        self.step_explanation = reactive.Value(TagList(INITIAL_EXPLANATION))
+        
+        # Error state
+        self.invalid_edge_list = reactive.Value(False)
+        self.start_node_error = reactive.Value(False)
+        self.target_node_error = reactive.Value(False)
+        
+        # History for undo functionality
+        self.state_history = reactive.Value([])
+    
+    def save_state(self):
+        """Save current state for undo functionality."""
+        state = {
+            "distances_df": self.distances_df.get().copy(),
+            "step_counter": self.step_counter.get(),
+            "nodes_visited": self.nodes_visited.get().copy(),
+            "current_edges": self.current_edges.get().copy(),
+            "current_node": self.current_node.get(),
+            "step_explanation": self.step_explanation.get()
+        }
+        self.state_history.get().append(state)
+    
+    def restore_state(self):
+        """Restore previous state for undo functionality."""
+        if self.state_history.get():
+            state = self.state_history.get().pop()
+            self.distances_df.set(state["distances_df"])
+            self.step_counter.set(state["step_counter"])
+            self.nodes_visited.set(state["nodes_visited"])
+            self.current_edges.set(state["current_edges"])
+            self.current_node.set(state["current_node"])
+            self.step_explanation.set(state["step_explanation"])
+    
+    def reset_algorithm_state(self):
+        """Reset algorithm state to initial conditions."""
+        G = self.graph.get()
+        if G:
+            nodes, index_name = self._get_graph_nodes_and_index_name(G)
+            distance_matrix = pd.DataFrame(index=nodes, columns=["Cost", "Previous"])
+            distance_matrix["Cost"] = float('inf')
+            
+            distance_matrix.index.name = index_name
+            distance_matrix.reset_index(inplace=True)
+            self.distances_df.set(distance_matrix)
+            self.step_counter.set(0)
+            self.nodes_visited.set([])
+            self.current_edges.set([])
+            self.current_node.set(None)
+            self.solution.set(None)
+            self.step_explanation.set(TagList(INITIAL_EXPLANATION))
+    
+    def _get_graph_nodes_and_index_name(self, G):
+        """Get nodes and index name based on graph structure."""
+        if "label" in G.nodes[0]:
+            nodes = dict(sorted(nx.get_node_attributes(G, "label").items())).values()
+            index_name = "Cities"
+        else:
+            nodes = [str(node) for node in G.nodes]
+            index_name = "Node"
+        return nodes, index_name
+
+
+# Global state manager instance
+state_manager = StateManager()
