@@ -1,33 +1,26 @@
+"""Example Shiny for Python app with Cytoscape.js integration."""
+
 from shiny import App, ui
 
 from modules.dijkstra_info import dijkstra_info
 from modules.graph_ui_cytoscape import cytoscape_graph_ui, cytoscape_graph_ui_server
 from modules.project_information import project_information
 
-example_page = ui.page_fluid(
-    ui.panel_title("Dijkstra Shiny!"),
-    ui.input_slider("n", "N", 0, 100, 20),
-    ui.output_text_verbatim("txt"),
-)
-
-simple_plot = ui.page_fluid(
-    ui.output_plot("plot")
-)
-
-simple_graph = ui.page_fluid(
-    ui.output_plot("graph")
-)
-
+# App UI with Cytoscape integration
 app_ui = ui.page_navbar(
-    ui.nav_panel("Start", cytoscape_graph_ui()),
+    ui.nav_panel("Dijkstra with Cytoscape", cytoscape_graph_ui()),
     ui.nav_panel("About the Project", project_information),
     ui.nav_panel("More about the Dijkstra-Algorithm", dijkstra_info),
-    title="PathSolver by Timo Gerstenhauer"
+    title="PathSolver with Cytoscape.js by Timo Gerstenhauer"
 )
 
 
 def server(input, output, session):
+    """Server function with Cytoscape integration."""
     cytoscape_graph_ui_server(input, output, session)
 
 
 app = App(app_ui, server)
+
+if __name__ == "__main__":
+    app.run()
