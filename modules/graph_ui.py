@@ -7,7 +7,7 @@ from htmltools import TagList
 from shiny import ui, render, reactive
 from shiny.types import FileInfo
 
-from modules.djikstra_explanation import djikstra_explanation
+from modules.dijkstra_explanation import dijkstra_explanation
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal, tutorial_modal_server
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
@@ -91,9 +91,9 @@ def visited_nodes_ui():
 
 def algorithm_explanation_ui():
     return ui.card(
-        ui.card_header("Explanaiton of the Algorithm"),
+        ui.card_header("Explanation of the Algorithm"),
         ui.card_body(
-            djikstra_explanation
+            dijkstra_explanation
 
         )
     )
@@ -245,10 +245,31 @@ def graph_ui_server(input, output, session):
     @reactive.event(input.submit_solution)
     def check_user_solution():
         user_input = input.user_solution().strip()
+        
+        # Validate input is not empty
+        if not user_input:
+            step_explanation.set(TagList("Please enter a solution before submitting."))
+            return
+            
         try:
-            user_solution = [int(node) for node in user_input.split(",")]
+            # Split by comma and strip whitespace from each element
+            user_solution = [int(node.strip()) for node in user_input.split(",")]
         except ValueError:
-            user_solution = None
+            step_explanation.set(TagList("Invalid input format. Please enter node numbers separated by commas (e.g., 0, 1, 2)."))
+            return
+        
+        # Validate that all nodes exist in the graph
+        G = graph.get()
+        invalid_nodes = [node for node in user_solution if node not in G.nodes()]
+        if invalid_nodes:
+            step_explanation.set(TagList(f"Invalid nodes: {invalid_nodes}. Please only use nodes that exist in the graph."))
+            return
+            
+        # Validate that the path is connected
+        for i in range(len(user_solution) - 1):
+            if not G.has_edge(user_solution[i], user_solution[i + 1]):
+                step_explanation.set(TagList(f"No edge exists between nodes {user_solution[i]} and {user_solution[i + 1]}. Please check your path."))
+                return
 
         correct_solution = solution.get()
 
@@ -488,7 +509,7 @@ def set_new_current_node(df, G, input):
                 ui.br(),
                 "The weights of the edges are now hidden, so try to get the solution with help of the table below.",
                 ui.br(),
-                "The Dijkstra Algorithm would trace the way from thr Target node via its previus node until it arrives at the start node",
+                "The Dijkstra Algorithm would trace the way from the Target node via its previous node until it arrives at the start node",
             )
         )
         step_counter.set(step_counter.get() + 1)

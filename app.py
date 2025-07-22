@@ -5,7 +5,7 @@ from modules.graph_ui import graph_ui, graph_ui_server
 from modules.project_information import project_information
 
 example_page = ui.page_fluid(
-    ui.panel_title("Djikstra Shiny!"),
+    ui.panel_title("Dijkstra Shiny!"),
     ui.input_slider("n", "N", 0, 100, 20),
     ui.output_text_verbatim("txt"),
 )
