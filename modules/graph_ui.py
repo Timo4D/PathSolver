@@ -15,7 +15,7 @@ from modules.cytoscape.graph_component import render_cytoscape
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal_server
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
-from utils.graph_utils import plot_graph
+from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout
 
 
 def graph_ui():
@@ -173,127 +173,19 @@ def graph_ui_server(input, output, session):
     def cytoscape_graph():
         """Render the graph using Cytoscape.js."""
         graph = state_manager.graph.get()
-        if not graph or len(graph.nodes) == 0:
-            return {"elements": [], "style": [], "layout": {"name": "circle"}}
-        
-        # Convert NetworkX graph to Cytoscape format
-        elements = []
-        
-        # Add nodes
-        for node in graph.nodes():
-            node_data = {
-                "data": {
-                    "id": str(node),
-                    "label": str(node)
-                }
-            }
-            
-            # Style nodes based on current state
-            current_node = state_manager.current_node.get()
-            start_node = input.start_node()
-            target_node = input.target_node()
-            
-            if node == current_node:
-                node_data["classes"] = "current"
-            elif node == start_node:
-                node_data["classes"] = "start"
-            elif node == target_node:
-                node_data["classes"] = "target"
-            elif node in state_manager.nodes_visited.get():
-                node_data["classes"] = "visited"
-            
-            elements.append(node_data)
-        
-        # Add edges
-        for edge in graph.edges(data=True):
-            source, target, data = edge
-            edge_data = {
-                "data": {
-                    "id": f"{source}-{target}",
-                    "source": str(source),
-                    "target": str(target),
-                    "weight": data.get("weight", 1)
-                }
-            }
-            
-            # Highlight current edges
-            current_edges = state_manager.current_edges.get()
-            if (source, target) in current_edges or (target, source) in current_edges:
-                edge_data["classes"] = "current"
-            
-            elements.append(edge_data)
-        
-        # Define styles for different node and edge states
-        style = [
-            {
-                "selector": "node",
-                "style": {
-                    "background-color": "#4CAF50",
-                    "color": "#fff",
-                    "label": "data(label)",
-                    "width": 40,
-                    "height": 40,
-                    "text-valign": "center",
-                    "text-halign": "center",
-                    "font-size": "12px"
-                }
-            },
-            {
-                "selector": "node.start",
-                "style": {
-                    "background-color": "#2196F3",
-                }
-            },
-            {
-                "selector": "node.target", 
-                "style": {
-                    "background-color": "#FF5722",
-                }
-            },
-            {
-                "selector": "node.current",
-                "style": {
-                    "background-color": "#FFC107",
-                    "border-width": 3,
-                    "border-color": "#FF9800"
-                }
-            },
-            {
-                "selector": "node.visited",
-                "style": {
-                    "background-color": "#9C27B0",
-                }
-            },
-            {
-                "selector": "edge",
-                "style": {
-                    "width": 2,
-                    "line-color": "#666",
-                    "target-arrow-color": "#666",
-                    "target-arrow-shape": "triangle",
-                    "label": "data(weight)",
-                    "font-size": "10px"
-                }
-            },
-            {
-                "selector": "edge.current",
-                "style": {
-                    "width": 4,
-                    "line-color": "#FFC107",
-                    "target-arrow-color": "#FFC107"
-                }
-            }
-        ]
-        
-        layout = {
-            "name": "circle",
-            "radius": 150
-        }
+        elements = convert_graph_to_cytoscape(
+            graph,
+            current_node=state_manager.current_node.get(),
+            start_node=input.start_node(),
+            target_node=input.target_node(),
+            nodes_visited=state_manager.nodes_visited.get(),
+            current_edges=state_manager.current_edges.get()
+        )
         
         return {
             "elements": elements,
-            "style": style,
-            "layout": layout
+            "style": get_cytoscape_styles(),
+            "layout": get_cytoscape_layout()
         }
 
     # Initialize tutorial modal server
