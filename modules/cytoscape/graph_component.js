@@ -1,11 +1,4 @@
-//import cytoscape.js
-if (typeof cytoscape === "undefined") {
-  // Load Cytoscape.js from CDN if not already loaded
-  const script = document.createElement("script");
-  script.src =
-    "https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js";
-  document.head.appendChild(script);
-}
+// Cytoscape.js and cxtmenu extension are loaded via HTML dependencies
 
 if (Shiny) {
   class CytoscapeOutputBinding extends Shiny.OutputBinding {
@@ -121,80 +114,43 @@ if (Shiny) {
           });
         });
 
-        // Right-click context menu for nodes
-        el._cytoscape.on("cxttap", "node", function (evt) {
-          evt.preventDefault();
-          const node = evt.target;
-          const nodeId = node.id();
-          const position = evt.renderedPosition;
-          
-          // Remove any existing context menu
-          const existingMenu = document.getElementById('cytoscape-context-menu');
-          if (existingMenu) {
-            existingMenu.remove();
-          }
-          
-          // Create context menu
-          const contextMenu = document.createElement('div');
-          contextMenu.id = 'cytoscape-context-menu';
-          contextMenu.style.cssText = `
-            position: absolute;
-            left: ${position.x}px;
-            top: ${position.y}px;
-            background: white;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 1000;
-            min-width: 150px;
-          `;
-          
-          // Menu options
-          const setStartOption = document.createElement('div');
-          setStartOption.textContent = 'Set as Start Node';
-          setStartOption.style.cssText = `
-            padding: 10px 15px;
-            cursor: pointer;
-            border-bottom: 1px solid #eee;
-          `;
-          setStartOption.onmouseover = () => setStartOption.style.backgroundColor = '#f5f5f5';
-          setStartOption.onmouseout = () => setStartOption.style.backgroundColor = 'white';
-          setStartOption.onclick = () => {
-            Shiny.setInputValue(`${outputId}_set_start_node`, {
-              id: nodeId,
-              timestamp: Date.now()
-            });
-            contextMenu.remove();
-          };
-          
-          const setTargetOption = document.createElement('div');
-          setTargetOption.textContent = 'Set as Target Node';
-          setTargetOption.style.cssText = `
-            padding: 10px 15px;
-            cursor: pointer;
-          `;
-          setTargetOption.onmouseover = () => setTargetOption.style.backgroundColor = '#f5f5f5';
-          setTargetOption.onmouseout = () => setTargetOption.style.backgroundColor = 'white';
-          setTargetOption.onclick = () => {
-            Shiny.setInputValue(`${outputId}_set_target_node`, {
-              id: nodeId,
-              timestamp: Date.now()
-            });
-            contextMenu.remove();
-          };
-          
-          contextMenu.appendChild(setStartOption);
-          contextMenu.appendChild(setTargetOption);
-          document.body.appendChild(contextMenu);
-          
-          // Remove menu when clicking elsewhere
-          const removeMenu = (e) => {
-            if (!contextMenu.contains(e.target)) {
-              contextMenu.remove();
-              document.removeEventListener('click', removeMenu);
+        // Initialize cxtmenu extension
+        el._cytoscape.cxtmenu({
+          selector: 'node',
+          commands: [
+            {
+              content: '🎯 Start',
+              contentStyle: {},
+              select: function(ele) {
+                Shiny.setInputValue(`${outputId}_set_start_node`, {
+                  id: ele.id(),
+                  timestamp: Date.now()
+                });
+              }
+            },
+            {
+              content: '🏁 Target',
+              contentStyle: {},
+              select: function(ele) {
+                Shiny.setInputValue(`${outputId}_set_target_node`, {
+                  id: ele.id(),
+                  timestamp: Date.now()
+                });
+              }
             }
-          };
-          setTimeout(() => document.addEventListener('click', removeMenu), 100);
+          ],
+          fillColor: 'rgba(0, 0, 0, 0.75)',
+          activeFillColor: 'rgba(1, 105, 217, 0.75)',
+          activePadding: 20,
+          indicatorSize: 24,
+          separatorWidth: 3,
+          spotlightPadding: 4,
+          minSpotlightRadius: 24,
+          maxSpotlightRadius: 38,
+          itemColor: 'white',
+          itemTextShadowColor: 'transparent',
+          zIndex: 9999,
+          atMouse: false
         });
 
         // Run the initial layout only once
