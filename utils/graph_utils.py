@@ -88,22 +88,30 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
     elements = []
     
     # Add nodes
-    for node in graph.nodes():
+    for node in graph.nodes(data=True):
+        node_id, node_attrs = node
         node_data = {
             "data": {
-                "id": str(node),
-                "label": str(node)
+                "id": str(node_id),
+                "label": str(node_id)
             }
         }
         
+        # Add position if stored in node attributes
+        if "x" in node_attrs and "y" in node_attrs:
+            node_data["position"] = {
+                "x": node_attrs["x"],
+                "y": node_attrs["y"]
+            }
+        
         # Style nodes based on current state
-        if node == current_node:
+        if node_id == current_node:
             node_data["classes"] = "current"
-        elif node == start_node:
+        elif node_id == start_node:
             node_data["classes"] = "start"
-        elif node == target_node:
+        elif node_id == target_node:
             node_data["classes"] = "target"
-        elif node in nodes_visited:
+        elif node_id in nodes_visited:
             node_data["classes"] = "visited"
         
         elements.append(node_data)

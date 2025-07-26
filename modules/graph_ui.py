@@ -280,6 +280,50 @@ def graph_ui_server(input, output, session):
                 # Reset algorithm state since graph structure changed
                 state_manager.reset_algorithm_state()
 
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_add_node)
+    def handle_add_node():
+        """Handle adding a new node from context menu."""
+        data = input.cytoscape_graph_add_node()
+        print(f"Debug: Received add_node data: {data}")  # Debug output
+        
+        if data and "x" in data and "y" in data:
+            graph = state_manager.graph.get()
+            if graph:
+                # Find the next available node ID
+                existing_nodes = list(graph.nodes())
+                if existing_nodes:
+                    # For integer node IDs, find the maximum and add 1
+                    if all(isinstance(node, int) for node in existing_nodes):
+                        new_node_id = max(existing_nodes) + 1
+                    else:
+                        # For mixed or string node IDs, find a unique ID
+                        new_node_id = len(existing_nodes)
+                        while new_node_id in existing_nodes:
+                            new_node_id += 1
+                else:
+                    new_node_id = 0
+                
+                print(f"Debug: Creating new node with ID: {new_node_id} at position ({data['x']}, {data['y']})")  # Debug output
+                
+                # Create a copy of the graph and add the new node with position
+                graph_copy = graph.copy()
+                graph_copy.add_node(new_node_id, x=data["x"], y=data["y"])
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Reset algorithm state since graph structure changed
+                state_manager.reset_algorithm_state()
+                
+                state_manager.step_explanation.set(
+                    TagList(f"Added new node {new_node_id} to the graph at position ({data['x']:.0f}, {data['y']:.0f})")
+                )
+            else:
+                print("Debug: No graph found in state manager")  # Debug output
+        else:
+            print("Debug: No valid position data received for add_node event")  # Debug output
+
     # Initialize tutorial modal server
     tutorial_modal_server(input, output, session)
 

@@ -67,11 +67,14 @@ if (Shiny) {
               }
             });
             
-            // Only run layout if no positions were preserved
+            // Only run layout if no positions were preserved and no nodes have preset positions
             const nodesWithPositions = el._cytoscape.nodes().filter(node => 
               currentPositions[node.id()]
             );
-            if (nodesWithPositions.length === 0) {
+            const nodesWithPresetPositions = el._cytoscape.nodes().filter(node => 
+              node.position().x !== 0 || node.position().y !== 0
+            );
+            if (nodesWithPositions.length === 0 && nodesWithPresetPositions.length === 0) {
               el._cytoscape.layout(layout || { name: "cose" }).run();
             }
           } else {
@@ -209,6 +212,66 @@ if (Shiny) {
           ],
           fillColor: 'rgba(0, 0, 0, 0.75)',
           activeFillColor: 'rgba(217, 105, 1, 0.75)',
+          activePadding: 20,
+          indicatorSize: 24,
+          separatorWidth: 3,
+          spotlightPadding: 4,
+          minSpotlightRadius: 24,
+          maxSpotlightRadius: 38,
+          itemColor: 'white',
+          itemTextShadowColor: 'transparent',
+          zIndex: 9999,
+          atMouse: false
+        });
+
+        // Store mouse position globally
+        let lastMousePosition = { x: 100, y: 100 };
+        
+        // Track mouse position over the cytoscape container
+        el.addEventListener('mousemove', function(event) {
+          const rect = el.getBoundingClientRect();
+          const cy = el._cytoscape;
+          if (cy) {
+            // Convert screen coordinates to cytoscape model coordinates
+            const screenX = event.clientX - rect.left;
+            const screenY = event.clientY - rect.top;
+            
+            // Get the rendered position (screen coordinates) and convert to model coordinates
+            const renderedPosition = {
+              x: screenX,
+              y: screenY
+            };
+            
+            // Convert rendered position to model position using Cytoscape's built-in method
+            const modelPosition = {
+              x: (renderedPosition.x - cy.pan().x) / cy.zoom(),
+              y: (renderedPosition.y - cy.pan().y) / cy.zoom()
+            };
+            
+            lastMousePosition = modelPosition;
+          }
+        });
+
+        // Initialize cxtmenu extension for background (empty space)
+        el._cytoscape.cxtmenu({
+          selector: 'core',
+          commands: [
+            {
+              content: '➕ Add Node',
+              contentStyle: {},
+              select: function(ele) {
+                console.log('Add node clicked! Using stored mouse position:', lastMousePosition);
+                
+                Shiny.setInputValue(`${outputId}_add_node`, {
+                  x: lastMousePosition.x,
+                  y: lastMousePosition.y,
+                  timestamp: Date.now()
+                });
+              }
+            }
+          ],
+          fillColor: 'rgba(0, 0, 0, 0.75)',
+          activeFillColor: 'rgba(34, 139, 34, 0.75)',
           activePadding: 20,
           indicatorSize: 24,
           separatorWidth: 3,
