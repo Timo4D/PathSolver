@@ -7,7 +7,7 @@ from shiny.render.renderer import Renderer
 
 cytoscape_dep = HTMLDependency(
     name="cytoscape",
-    version="3.32.1",
+    version="3.32.3",
     source={"subdir": "modules/cytoscape"},
     script={"src": "graph_component.js"},
 )

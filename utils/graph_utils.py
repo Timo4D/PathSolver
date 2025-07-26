@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import networkx as nx
 from networkx.classes import Graph
+import math
 
 
 
@@ -195,6 +196,5 @@ def get_cytoscape_styles():
 def get_cytoscape_layout():
     """Get default Cytoscape layout."""
     return {
-        "name": "circle",
-        "radius": 150
+        "name": "cose"
     }
