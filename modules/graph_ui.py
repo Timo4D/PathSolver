@@ -216,6 +216,41 @@ def graph_ui_server(input, output, session):
                 # Reset algorithm state when target node changes
                 state_manager.reset_algorithm_state()
 
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_delete_node)
+    def handle_delete_node():
+        """Handle deleting a node from context menu."""
+        data = input.cytoscape_graph_delete_node()
+        if data and "id" in data:
+            node_id = int(data["id"])
+            graph = state_manager.graph.get()
+            if graph and node_id in graph.nodes():
+                # Check if deleting this node would disconnect the graph
+                if len(graph.nodes()) <= 2:
+                    state_manager.step_explanation.set(
+                        TagList("Cannot delete node: Graph must have at least 2 nodes")
+                    )
+                    return
+                
+                # Remove the node and all its edges from the NetworkX graph
+                graph_copy = graph.copy()
+                graph_copy.remove_node(node_id)
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Clear start/target if they were the deleted node
+                current_start = input.start_node()
+                current_target = input.target_node()
+                
+                if current_start and int(current_start) == node_id:
+                    ui.update_selectize("start_node", selected="")
+                if current_target and int(current_target) == node_id:
+                    ui.update_selectize("target_node", selected="")
+                
+                # Reset algorithm state
+                state_manager.reset_algorithm_state()
+
     # Initialize tutorial modal server
     tutorial_modal_server(input, output, session)
 

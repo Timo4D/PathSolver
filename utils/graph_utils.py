@@ -44,7 +44,7 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
     nx.draw_networkx_labels(G, pos)
 
     # Draw labels
-    if "label" in G.nodes[0]:
+    if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
         labels = dict(sorted(nx.get_node_attributes(G, "label").items()))
         label_pos = {node: (coords[0], coords[1] - 0.13) for node, coords in pos.items()}
         nx.draw_networkx_labels(G, label_pos, labels, font_color=default_color)

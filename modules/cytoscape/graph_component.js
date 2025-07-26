@@ -34,7 +34,13 @@ if (Shiny) {
           ![...newEdgeIds].every(id => currentEdgeIds.has(id));
 
         if (nodeStructureChanged || edgeStructureChanged) {
-          // Graph structure changed - reset layout
+          // Save current positions before structure change
+          const currentPositions = {};
+          el._cytoscape.nodes().forEach(node => {
+            currentPositions[node.id()] = node.position();
+          });
+          
+          // Update graph structure
           el._cytoscape.elements().remove();
           el._cytoscape.add(elements);
           el._cytoscape.style(style || [
@@ -49,8 +55,29 @@ if (Shiny) {
             },
           ]);
           
-          // Run layout for new graph structure
-          el._cytoscape.layout(layout || { name: "cose" }).run();
+          // Check if this might be a user edit (only preserve layout if reasonable)
+          const isLikelyUserEdit = Math.abs(currentNodeIds.size - newNodeIds.size) <= 1;
+          
+          if (isLikelyUserEdit) {
+            // Preserve positions for remaining nodes when user edits via context menu
+            el._cytoscape.nodes().forEach(node => {
+              const nodeId = node.id();
+              if (currentPositions[nodeId]) {
+                node.position(currentPositions[nodeId]);
+              }
+            });
+            
+            // Only run layout if no positions were preserved
+            const nodesWithPositions = el._cytoscape.nodes().filter(node => 
+              currentPositions[node.id()]
+            );
+            if (nodesWithPositions.length === 0) {
+              el._cytoscape.layout(layout || { name: "cose" }).run();
+            }
+          } else {
+            // Run layout for major graph structure changes
+            el._cytoscape.layout(layout || { name: "cose" }).run();
+          }
         } else {
           // Only styling changed - preserve positions
           const currentPositions = {};
@@ -133,6 +160,16 @@ if (Shiny) {
               contentStyle: {},
               select: function(ele) {
                 Shiny.setInputValue(`${outputId}_set_target_node`, {
+                  id: ele.id(),
+                  timestamp: Date.now()
+                });
+              }
+            },
+            {
+              content: '🗑️ Delete',
+              contentStyle: {},
+              select: function(ele) {
+                Shiny.setInputValue(`${outputId}_delete_node`, {
                   id: ele.id(),
                   timestamp: Date.now()
                 });

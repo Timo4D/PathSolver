@@ -76,14 +76,25 @@ class StateManager:
             self.current_node.set(None)
             self.solution.set(None)
             self.step_explanation.set(TagList(INITIAL_EXPLANATION))
+            
+            # Reset error states when algorithm is reset
+            self.start_node_error.set(False)
+            self.target_node_error.set(False)
     
     def _get_graph_nodes_and_index_name(self, G):
         """Get nodes and index name based on graph structure."""
-        if "label" in G.nodes[0]:
+        # Check if any node has a label attribute (safely handle any graph structure)
+        has_labels = False
+        if G.nodes:
+            first_node = next(iter(G.nodes))
+            has_labels = "label" in G.nodes[first_node]
+        
+        if has_labels:
             nodes = dict(sorted(nx.get_node_attributes(G, "label").items())).values()
             index_name = "Cities"
         else:
-            nodes = [str(node) for node in G.nodes]
+            # Keep the original node types instead of converting to string
+            nodes = list(G.nodes)
             index_name = "Node"
         return nodes, index_name
 

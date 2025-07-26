@@ -24,6 +24,11 @@ class DijkstraStepHandler:
         df = self.state.distances_df.get()
         G = self.state.graph.get()
         
+        # Clear any previous error states when starting algorithm
+        if step == STEP_INITIALIZE:
+            self.state.start_node_error.set(False)
+            self.state.target_node_error.set(False)
+        
         if step == STEP_INITIALIZE:
             self.initialize_step(input, df, G)
         elif step == STEP_VISIT_NODES:
@@ -43,33 +48,117 @@ class DijkstraStepHandler:
             TagList("First set distance to start node to 0 and every other node to infinity")
         )
         
+        # Check if the graph is connected before proceeding
+        if not nx.is_connected(G):
+            self.state.step_explanation.set(
+                TagList(
+                    "❌ Cannot run Dijkstra algorithm: The graph is not fully connected!",
+                    ui.br(), ui.br(),
+                    "A connected graph is required for Dijkstra's algorithm to find paths between all nodes. ",
+                    "This graph has isolated components that cannot reach each other.",
+                    ui.br(), ui.br(),
+                    "Please:",
+                    ui.br(),
+                    "• Generate a new random graph, or",
+                    ui.br(), 
+                    "• Add edges to connect all components, or",
+                    ui.br(),
+                    "• Choose a different graph that is fully connected"
+                )
+            )
+            return
+        
         if not df.empty:
-            start_node = input.start_node()
-            target_node = input.target_node()
+            start_node_raw = input.start_node()
+            target_node_raw = input.target_node()
             
-            if start_node in G.nodes:
-                self.state.start_node_error.set(False)
-            else:
+            # Always clear errors first
+            self.state.start_node_error.set(False)
+            self.state.target_node_error.set(False)
+            
+            # Convert to appropriate type to match graph nodes
+            start_node = start_node_raw
+            target_node = target_node_raw
+            
+            # Try to match the type of nodes in the graph
+            if G.nodes:
+                sample_node = next(iter(G.nodes))
+                if isinstance(sample_node, int):
+                    try:
+                        start_node = int(start_node_raw) if start_node_raw is not None else None
+                        target_node = int(target_node_raw) if target_node_raw is not None else None
+                    except (ValueError, TypeError):
+                        pass
+                elif isinstance(sample_node, str):
+                    start_node = str(start_node_raw) if start_node_raw is not None else None
+                    target_node = str(target_node_raw) if target_node_raw is not None else None
+            
+            # Validate start node
+            if start_node is None:
                 self.state.start_node_error.set(True)
+                self.state.step_explanation.set(TagList("Please select a start node"))
                 return
-
-            if target_node in G.nodes:
-                df.iloc[start_node, 1] = 0
-                if "label" in G.nodes[0]:
-                    df.iloc[start_node, 2] = nx.get_node_attributes(G, "label")[start_node]
-                else:
-                    df.iloc[start_node, 2] = start_node
-                self.state.distances_df.set(df)
-                self.state.nodes_visited.set(self.state.nodes_visited.get() + [start_node])
-                self.state.current_node.set(start_node)
-                self.state.step_counter.set(STEP_VISIT_NODES)
-                self.state.target_node_error.set(False)
-            else:
+            
+            if start_node not in G.nodes:
+                self.state.start_node_error.set(True)
+                self.state.step_explanation.set(TagList(f"Start node {start_node} does not exist in the graph. Available nodes: {list(G.nodes)}"))
+                return
+            
+            # Validate target node
+            if target_node is None:
                 self.state.target_node_error.set(True)
+                self.state.step_explanation.set(TagList("Please select a target node"))
+                return
+                
+            if target_node not in G.nodes:
+                self.state.target_node_error.set(True)
+                self.state.step_explanation.set(TagList(f"Target node {target_node} does not exist in the graph. Available nodes: {list(G.nodes)}"))
+                return
+            
+            # Both nodes are valid, proceed with algorithm
+            # For labeled graphs, we need to look up by city name instead of node ID
+            lookup_value = start_node
+            if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+                # This is a labeled graph - use the city name for lookup
+                lookup_value = nx.get_node_attributes(G, "label")[start_node]
+            
+            # Find the row index for the start_node (using appropriate lookup value)
+            start_rows = df[df.iloc[:, 0] == lookup_value]
+            if start_rows.empty:
+                self.state.start_node_error.set(True)
+                self.state.step_explanation.set(TagList(f"Start node {start_node} (lookup: {lookup_value}) not found in distance table"))
+                return
+            
+            start_row_idx = start_rows.index[0]
+            df.iloc[start_row_idx, 1] = 0
+            if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+                df.iloc[start_row_idx, 2] = nx.get_node_attributes(G, "label")[start_node]
+            else:
+                df.iloc[start_row_idx, 2] = start_node
+            
+            # Success - update state
+            self.state.distances_df.set(df)
+            self.state.nodes_visited.set(self.state.nodes_visited.get() + [start_node])
+            self.state.current_node.set(start_node)
+            self.state.step_counter.set(STEP_VISIT_NODES)
+            
+            # Ensure error states are cleared
+            self.state.start_node_error.set(False)
+            self.state.target_node_error.set(False)
     
     def visit_neighbors(self, df, G):
         """Visit and update distances to neighbors."""
-        prev_cost = df.iloc[self.state.current_node.get(), 1]
+        # Find the row index for the current node
+        current_node = self.state.current_node.get()
+        lookup_value = current_node
+        if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+            lookup_value = nx.get_node_attributes(G, "label")[current_node]
+        
+        current_rows = df[df.iloc[:, 0] == lookup_value]
+        if current_rows.empty:
+            return  # Cannot proceed if current node not found
+        current_row_idx = current_rows.index[0]
+        prev_cost = df.iloc[current_row_idx, 1]
         neighbors, edges = [], []
         
         for n in G.neighbors(self.state.current_node.get()):
@@ -81,12 +170,21 @@ class DijkstraStepHandler:
                     "weight": (G[n][self.state.current_node.get()]['weight'] + prev_cost)
                 })
 
-                if new_weight < df.iloc[n, 1]:
-                    df.iloc[n, 1] = new_weight
-                    if "label" in G.nodes[0]:
-                        df.iloc[n, 2] = nx.get_node_attributes(G, "label")[self.state.current_node.get()]
+                # Find the row index for node n
+                n_lookup_value = n
+                if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+                    n_lookup_value = nx.get_node_attributes(G, "label")[n]
+                
+                n_rows = df[df.iloc[:, 0] == n_lookup_value]
+                if n_rows.empty:
+                    continue  # Skip if node not found in DataFrame
+                n_row_idx = n_rows.index[0]
+                if new_weight < df.iloc[n_row_idx, 1]:
+                    df.iloc[n_row_idx, 1] = new_weight
+                    if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+                        df.iloc[n_row_idx, 2] = nx.get_node_attributes(G, "label")[self.state.current_node.get()]
                     else:
-                        df.iloc[n, 2] = self.state.current_node.get()
+                        df.iloc[n_row_idx, 2] = self.state.current_node.get()
 
                 edges.append(sorted((n, self.state.current_node.get())))
 
@@ -121,8 +219,28 @@ class DijkstraStepHandler:
         """Set the next node to visit."""
         self.state.current_edges.set([])
 
-        unvisited_nodes = df[~df.index.isin(self.state.nodes_visited.get())]
-        min_cost_node = unvisited_nodes["Cost"].idxmin()
+        # Filter out visited nodes from the DataFrame
+        visited_lookup_values = []
+        for visited_node in self.state.nodes_visited.get():
+            if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+                # For labeled graphs, convert node ID to city name
+                visited_lookup_values.append(nx.get_node_attributes(G, "label")[visited_node])
+            else:
+                # For unlabeled graphs, use node ID directly
+                visited_lookup_values.append(visited_node)
+        
+        unvisited_nodes = df[~df.iloc[:, 0].isin(visited_lookup_values)]
+        min_cost_row_idx = unvisited_nodes["Cost"].idxmin()
+        min_cost_lookup_value = df.iloc[min_cost_row_idx, 0]
+        
+        # Convert back to node ID if this is a labeled graph
+        if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+            # Find the node ID that corresponds to this city name
+            label_to_node = {v: k for k, v in nx.get_node_attributes(G, "label").items()}
+            min_cost_node = label_to_node[min_cost_lookup_value]
+        else:
+            min_cost_node = min_cost_lookup_value
+            
         self.state.current_node.set(min_cost_node)
 
         if self.state.current_node.get() == input.target_node():
