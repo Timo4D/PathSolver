@@ -24,7 +24,7 @@ cytoscape_cxtmenu_dep = HTMLDependency(
 # Our custom component
 cytoscape_dep = HTMLDependency(
     name="cytoscape",
-    version="3.32.9",
+    version="3.33.0",
     source={"subdir": "modules/cytoscape"},
     script={"src": "graph_component.js"},
 )

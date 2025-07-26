@@ -1,5 +1,6 @@
 """Refactored graph UI module with improved organization."""
 
+import networkx as nx
 from htmltools import TagList
 from shiny import ui, render, reactive
 from shiny.types import FileInfo
@@ -249,6 +250,34 @@ def graph_ui_server(input, output, session):
                     ui.update_selectize("target_node", selected="")
                 
                 # Reset algorithm state
+                state_manager.reset_algorithm_state()
+
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_delete_edge)
+    def handle_delete_edge():
+        """Handle deleting an edge from context menu."""
+        data = input.cytoscape_graph_delete_edge()
+        if data and "source" in data and "target" in data:
+            source_id = int(data["source"])
+            target_id = int(data["target"])
+            graph = state_manager.graph.get()
+            
+            if graph and graph.has_edge(source_id, target_id):
+                # Create a copy of the graph and remove the edge
+                graph_copy = graph.copy()
+                graph_copy.remove_edge(source_id, target_id)
+                
+                # Check if removing this edge would disconnect the graph
+                if not nx.is_connected(graph_copy):
+                    state_manager.step_explanation.set(
+                        TagList(f"Cannot delete edge {source_id}-{target_id}: This would disconnect the graph")
+                    )
+                    return
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Reset algorithm state since graph structure changed
                 state_manager.reset_algorithm_state()
 
     # Initialize tutorial modal server

@@ -141,7 +141,7 @@ if (Shiny) {
           });
         });
 
-        // Initialize cxtmenu extension
+        // Initialize cxtmenu extension for nodes
         el._cytoscape.cxtmenu({
           selector: 'node',
           commands: [
@@ -178,6 +178,37 @@ if (Shiny) {
           ],
           fillColor: 'rgba(0, 0, 0, 0.75)',
           activeFillColor: 'rgba(1, 105, 217, 0.75)',
+          activePadding: 20,
+          indicatorSize: 24,
+          separatorWidth: 3,
+          spotlightPadding: 4,
+          minSpotlightRadius: 24,
+          maxSpotlightRadius: 38,
+          itemColor: 'white',
+          itemTextShadowColor: 'transparent',
+          zIndex: 9999,
+          atMouse: false
+        });
+
+        // Initialize cxtmenu extension for edges
+        el._cytoscape.cxtmenu({
+          selector: 'edge',
+          commands: [
+            {
+              content: '🗑️ Delete Edge',
+              contentStyle: {},
+              select: function(ele) {
+                Shiny.setInputValue(`${outputId}_delete_edge`, {
+                  id: ele.id(),
+                  source: ele.source().id(),
+                  target: ele.target().id(),
+                  timestamp: Date.now()
+                });
+              }
+            }
+          ],
+          fillColor: 'rgba(0, 0, 0, 0.75)',
+          activeFillColor: 'rgba(217, 105, 1, 0.75)',
           activePadding: 20,
           indicatorSize: 24,
           separatorWidth: 3,
