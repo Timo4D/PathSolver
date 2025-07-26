@@ -188,6 +188,34 @@ def graph_ui_server(input, output, session):
             "layout": get_cytoscape_layout()
         }
 
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_set_start_node)
+    def handle_set_start_node():
+        """Handle setting start node from context menu."""
+        data = input.cytoscape_graph_set_start_node()
+        if data and "id" in data:
+            node_id = int(data["id"])
+            graph = state_manager.graph.get()
+            if graph and node_id in graph.nodes():
+                # Update the start node input programmatically
+                ui.update_selectize("start_node", selected=str(node_id))
+                # Reset algorithm state when start node changes
+                state_manager.reset_algorithm_state()
+
+    @reactive.Effect  
+    @reactive.event(input.cytoscape_graph_set_target_node)
+    def handle_set_target_node():
+        """Handle setting target node from context menu."""
+        data = input.cytoscape_graph_set_target_node()
+        if data and "id" in data:
+            node_id = int(data["id"])
+            graph = state_manager.graph.get()
+            if graph and node_id in graph.nodes():
+                # Update the target node input programmatically
+                ui.update_selectize("target_node", selected=str(node_id))
+                # Reset algorithm state when target node changes
+                state_manager.reset_algorithm_state()
+
     # Initialize tutorial modal server
     tutorial_modal_server(input, output, session)
 
