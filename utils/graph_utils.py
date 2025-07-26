@@ -154,6 +154,14 @@ def get_cytoscape_styles():
             }
         },
         {
+            "selector": "node.edge-source",
+            "style": {
+                "background-color": "#FF9800",
+                "border-width": 3,
+                "border-color": "#FF5722"
+            }
+        },
+        {
             "selector": "node.start",
             "style": {
                 "background-color": "#2196F3",

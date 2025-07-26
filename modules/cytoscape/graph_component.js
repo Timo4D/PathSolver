@@ -144,6 +144,10 @@ if (Shiny) {
           });
         });
 
+        // Store edge creation state
+        let edgeCreationMode = false;
+        let edgeSourceNode = null;
+
         // Initialize cxtmenu extension for nodes
         el._cytoscape.cxtmenu({
           selector: 'node',
@@ -166,6 +170,49 @@ if (Shiny) {
                   id: ele.id(),
                   timestamp: Date.now()
                 });
+              }
+            },
+            {
+              content: '🔗 Connect to...',
+              contentStyle: {},
+              select: function(ele) {
+                if (!edgeCreationMode) {
+                  // Start edge creation mode
+                  edgeCreationMode = true;
+                  edgeSourceNode = ele.id();
+                  console.log('Edge creation mode started. Source node:', edgeSourceNode);
+                  
+                  // Visual feedback - highlight the source node
+                  el._cytoscape.nodes().removeClass('edge-source');
+                  ele.addClass('edge-source');
+                  
+                  // Show instruction
+                  Shiny.setInputValue(`${outputId}_edge_creation_started`, {
+                    source: edgeSourceNode,
+                    timestamp: Date.now()
+                  });
+                } else {
+                  // Complete edge creation
+                  const targetNode = ele.id();
+                  console.log('Completing edge creation. Target node:', targetNode);
+                  
+                  if (edgeSourceNode !== targetNode) {
+                    Shiny.setInputValue(`${outputId}_create_edge`, {
+                      source: edgeSourceNode,
+                      target: targetNode,
+                      timestamp: Date.now()
+                    });
+                  }
+                  
+                  // Reset edge creation mode
+                  edgeCreationMode = false;
+                  edgeSourceNode = null;
+                  el._cytoscape.nodes().removeClass('edge-source');
+                  
+                  Shiny.setInputValue(`${outputId}_edge_creation_ended`, {
+                    timestamp: Date.now()
+                  });
+                }
               }
             },
             {

@@ -324,6 +324,62 @@ def graph_ui_server(input, output, session):
         else:
             print("Debug: No valid position data received for add_node event")  # Debug output
 
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_edge_creation_started)
+    def handle_edge_creation_started():
+        """Handle start of edge creation mode."""
+        data = input.cytoscape_graph_edge_creation_started()
+        if data and "source" in data:
+            source_node = data["source"]
+            state_manager.step_explanation.set(
+                TagList(f"Edge creation mode: Selected source node {source_node}. Right-click on another node to connect.")
+            )
+
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_edge_creation_ended)
+    def handle_edge_creation_ended():
+        """Handle end of edge creation mode."""
+        state_manager.step_explanation.set(
+            TagList("Edge creation mode ended.")
+        )
+
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_create_edge)
+    def handle_create_edge():
+        """Handle creating a new edge between two nodes."""
+        data = input.cytoscape_graph_create_edge()
+        if data and "source" in data and "target" in data:
+            source_id = int(data["source"])
+            target_id = int(data["target"])
+            graph = state_manager.graph.get()
+            
+            if graph and source_id in graph.nodes() and target_id in graph.nodes():
+                # Check if edge already exists
+                if graph.has_edge(source_id, target_id):
+                    state_manager.step_explanation.set(
+                        TagList(f"Edge between {source_id} and {target_id} already exists")
+                    )
+                    return
+                
+                # Create a copy of the graph and add the new edge
+                graph_copy = graph.copy()
+                # Add edge with default weight of 1
+                graph_copy.add_edge(source_id, target_id, weight=1)
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Reset algorithm state since graph structure changed
+                state_manager.reset_algorithm_state()
+                
+                state_manager.step_explanation.set(
+                    TagList(f"Created edge between nodes {source_id} and {target_id} with weight 1")
+                )
+            else:
+                state_manager.step_explanation.set(
+                    TagList(f"Cannot create edge: Invalid nodes {source_id} or {target_id}")
+                )
+
     # Initialize tutorial modal server
     tutorial_modal_server(input, output, session)
 
