@@ -10,14 +10,16 @@ from modules.state_manager import state_manager
 from modules.ui_components import (
     main_ui, GraphType, create_progress_bar, create_explanation_ui,
     render_graph_generator_settings, render_error_tooltip, render_distances_table,
-    create_prediction_game_ui
+    create_prediction_game_ui, create_view_toggle_ui
 )
 from modules.algorithm_logic import DijkstraStepHandler
 from modules.cytoscape.graph_component import render_cytoscape
+from modules.folium.folium_component import render_folium
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal_server
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list, generate_from_map_location
 from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout
+from utils.map_utils import create_folium_map_with_graph
 
 
 def graph_ui():
@@ -151,6 +153,42 @@ def graph_ui_server(input, output, session):
             )
         return None
 
+    @output
+    @render.ui
+    def view_toggle_ui():
+        """Show view toggle only for map graphs."""
+        graph = state_manager.graph.get()
+        is_map_graph = graph and graph.graph.get('is_map_graph', False)
+        return create_view_toggle_ui(is_map_graph)
+
+    @output
+    @render.ui
+    def graph_visualization():
+        """Render either Cytoscape or Folium view based on user selection."""
+        graph = state_manager.graph.get()
+        
+        # Default to Cytoscape view for non-map graphs
+        if not graph or not graph.graph.get('is_map_graph', False):
+            return render_cytoscape_view()
+        
+        # For map graphs, check user preference
+        view_mode = getattr(input, 'view_mode', lambda: 'graph')()
+        
+        if view_mode == 'map':
+            return render_folium_view()
+        else:
+            return render_cytoscape_view()
+
+    def render_cytoscape_view():
+        """Render the Cytoscape graph view."""
+        from modules.cytoscape.graph_component import output_cytoscape_graph
+        return output_cytoscape_graph("cytoscape_graph")
+
+    def render_folium_view():
+        """Render the Folium map view."""
+        from modules.folium.folium_component import output_folium_map
+        return output_folium_map("folium_map")
+
 
     @reactive.Effect
     @reactive.event(input.submit_solution)
@@ -230,6 +268,25 @@ def graph_ui_server(input, output, session):
             "style": get_cytoscape_styles(),
             "layout": get_cytoscape_layout(state_manager.graph.get())
         }
+
+    @render_folium
+    @reactive.event(
+        state_manager.graph, input.start_node, input.target_node, 
+        state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
+        state_manager.nodes_visited, state_manager.prediction_candidates
+    )
+    def folium_map():
+        """Render the graph using Folium map overlay."""
+        graph = state_manager.graph.get()
+        return create_folium_map_with_graph(
+            graph,
+            current_node=state_manager.current_node.get(),
+            start_node=input.start_node(),
+            target_node=input.target_node(),
+            nodes_visited=state_manager.nodes_visited.get(),
+            current_edges=state_manager.current_edges.get(),
+            distances=state_manager.distances_df.get()
+        )
 
     @reactive.Effect
     @reactive.event(input.cytoscape_graph_set_start_node)

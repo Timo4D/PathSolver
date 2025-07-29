@@ -17,6 +17,7 @@ from constants import (COLOR_ACTIVE, COLOR_INACTIVE, COLOR_START_NODE,
                        MIN_NEIGHBORS, MIN_NODES, MIN_REWIRE_PROB,
                        STEP_HEADINGS)
 from modules.cytoscape.graph_component import output_cytoscape_graph
+from modules.folium.folium_component import output_folium_map
 from modules.dijkstra_explanation import dijkstra_explanation
 from modules.tutorial_modal import tutorial_modal
 from utils.icons import warning as warning_icon
@@ -56,7 +57,8 @@ def main_ui():
                 ),
             ),
             ui.output_ui("map_mode_indicator"),
-            output_cytoscape_graph("cytoscape_graph"),
+            ui.output_ui("view_toggle_ui"),
+            ui.output_ui("graph_visualization"),
             ui.output_ui("progress_bar"),
             ui.output_ui("prediction_game_ui"),
             ui.output_ui("explain"),
@@ -311,3 +313,23 @@ def render_distances_table(df, start_node, target_node):
         except TypeError:
             df = pd.DataFrame({"Error": [ERROR_INVALID_DATA]})
             return render.DataTable(df, width="100%")
+
+
+def create_view_toggle_ui(is_map_graph=False):
+    """Create toggle between graph view and map view (only for map graphs)."""
+    if not is_map_graph:
+        return None
+    
+    return ui.div(
+        ui.input_radio_buttons(
+            "view_mode",
+            "Visualization Mode:",
+            {
+                "graph": "📊 Graph View",
+                "map": "🗺️ Map View"
+            },
+            selected="graph",
+            inline=True
+        ),
+        style="margin-bottom: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background-color: #f8f9fa;"
+    )
