@@ -434,8 +434,77 @@ def graph_ui_server(input, output, session):
                     TagList(f"Cannot update weight: Edge {source_id}-{target_id} does not exist")
                 )
 
-    # Initialize tutorial modal server
-    tutorial_modal_server(input, output, session)
+    # Initialize tutorial modal server and get tutorial object
+    tutorial = tutorial_modal_server(input, output, session)
+    
+    # Add tutorial styles output
+    @output
+    @render.ui
+    def tutorial_styles():
+        if not tutorial.is_active():
+            return ""
+        
+        current_step = tutorial.get_current_step()
+        highlight_element = current_step.get("highlight_element")
+        
+        if not highlight_element:
+            return ""
+        
+        # CSS to highlight the target element with enhanced visibility
+        return ui.tags.style(f"""
+            #{highlight_element} {{
+                animation: tutorial-pulse 2s infinite;
+                border: 4px solid #ff6b35 !important;
+                border-radius: 8px !important;
+                box-shadow: 0 0 20px rgba(255, 107, 53, 0.6) !important;
+                position: relative !important;
+                z-index: 1050 !important;
+                background-color: rgba(255, 255, 255, 0.95) !important;
+            }}
+            
+            #{highlight_element}::before {{
+                content: "";
+                position: absolute;
+                top: -8px;
+                left: -8px;
+                right: -8px;
+                bottom: -8px;
+                border: 2px dashed #ff6b35;
+                border-radius: 12px;
+                animation: tutorial-rotate 3s linear infinite;
+                z-index: -1;
+            }}
+            
+            @keyframes tutorial-pulse {{
+                0% {{ 
+                    box-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
+                    transform: scale(1);
+                }}
+                50% {{ 
+                    box-shadow: 0 0 30px rgba(255, 107, 53, 0.9);
+                    transform: scale(1.02);
+                }}
+                100% {{ 
+                    box-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
+                    transform: scale(1);
+                }}
+            }}
+            
+            @keyframes tutorial-rotate {{
+                from {{ transform: rotate(0deg); }}
+                to {{ transform: rotate(360deg); }}
+            }}
+            
+            /* Special handling for different UI elements */
+            #{highlight_element}.form-control,
+            #{highlight_element}.form-select {{
+                background-color: rgba(255, 255, 255, 1) !important;
+            }}
+            
+            #{highlight_element} .card {{
+                background-color: rgba(255, 255, 255, 0.98) !important;
+            }}
+        """)
 
 
 def _update_graph_based_on_selection(input):

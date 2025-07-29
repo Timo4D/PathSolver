@@ -10,19 +10,15 @@ example_page = ui.page_fluid(
     ui.output_text_verbatim("txt"),
 )
 
-simple_plot = ui.page_fluid(
-    ui.output_plot("plot")
-)
+simple_plot = ui.page_fluid(ui.output_plot("plot"))
 
-simple_graph = ui.page_fluid(
-    ui.output_plot("graph")
-)
+simple_graph = ui.page_fluid(ui.output_plot("graph"))
 
 app_ui = ui.page_navbar(
     ui.nav_panel("Start", graph_ui()),
     ui.nav_panel("About the Project", project_information),
     ui.nav_panel("More about the Dijkstra-Algorithm", dijkstra_info),
-    title="PathSolver by Timo Gerstenhauer"
+    title="PathSolver",
 )
 
 

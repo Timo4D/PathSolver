@@ -32,6 +32,7 @@ class GraphType(Enum):
 def main_ui():
     """Main application UI layout."""
     return ui.page_fluid(
+        ui.output_ui("tutorial_styles"),  # Add tutorial styles
         ui.layout_sidebar(
             ui.sidebar(
                 tutorial_modal(),
