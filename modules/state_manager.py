@@ -15,7 +15,6 @@ class StateManager:
         # Graph and algorithm state
         self.distances_df = reactive.Value(pd.DataFrame())
         self.graph = reactive.Value(nx.Graph())
-        self.seed = reactive.Value(1)
         self.solution = reactive.Value()
         
         # Algorithm progress state

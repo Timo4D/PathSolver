@@ -45,11 +45,9 @@ def tutorial_modal_server(input, output, session):
 
             ui.hr(),
             ui.h4("Step 2"),
-            ui.output_ui("start_target_seed_image"), ui.br(),
+            ui.output_ui("start_target_image"), ui.br(),
             "After choosing a graph you can select the start and the target node.", ui.br(),
             "The Dijkstra's algorithm will then try to find the fastest path from the start node to the target node.",
-            ui.br(),
-            "If you want to change the layout of you graph you simply need to change the layout seed until you find a good looking layout.",
             ui.hr(),
             ui.h4("Step 3"),
             ui.output_ui("prev_next_image", height="100%", width="100%"), ui.br(),
@@ -85,7 +83,7 @@ def tutorial_modal_server(input, output, session):
             width="80%")
 
     @render.ui
-    def start_target_seed_image():
+    def start_target_image():
         return ui.tags.img(
             src="https://cdn.discordapp.com/attachments/1321459358768304158/1321459405199380551/start_target_seed.png?ex=676d5079&is=676bfef9&hm=97078623fe9fee7ec57e90766127d736a41421d32f7d75da1419d6c3fad6d3fe&",
             width="40%")

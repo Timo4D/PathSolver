@@ -9,7 +9,7 @@ from shiny import render, ui
 from shiny.types import FileInfo
 
 from constants import (COLOR_ACTIVE, COLOR_INACTIVE, COLOR_START_NODE,
-                       COLOR_TARGET_NODE, DEFAULT_LAYOUT_SEED,
+                       COLOR_TARGET_NODE,
                        DEFAULT_NEIGHBORS, DEFAULT_NODES, DEFAULT_REWIRE_PROB,
                        DEFAULT_START_NODE, DEFAULT_TARGET_NODE,
                        ERROR_INVALID_DATA, ERROR_NODE_NOT_IN_GRAPH,
@@ -49,9 +49,6 @@ def main_ui():
                     ui.span("Target Node", ui.output_ui("target_node_error_message")),
                     value=DEFAULT_TARGET_NODE,
                     min=0,
-                ),
-                ui.input_numeric(
-                    "layout_seed", "Layout Seed", value=DEFAULT_LAYOUT_SEED, min=0
                 ),
             ),
             output_cytoscape_graph("cytoscape_graph"),

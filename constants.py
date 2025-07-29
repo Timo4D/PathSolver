@@ -16,7 +16,6 @@ COLOR_TARGET_NODE = "red"
 # Default values
 DEFAULT_START_NODE = 0
 DEFAULT_TARGET_NODE = 1
-DEFAULT_LAYOUT_SEED = 1
 
 # Graph generation limits
 MIN_NODES = 2
