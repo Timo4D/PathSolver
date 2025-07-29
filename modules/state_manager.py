@@ -32,6 +32,7 @@ class StateManager:
         self.invalid_edge_list = reactive.Value(False)
         self.start_node_error = reactive.Value(False)
         self.target_node_error = reactive.Value(False)
+        self.map_location_error = reactive.Value(False)
         
         # History for undo functionality
         self.state_history = reactive.Value([])
@@ -90,6 +91,7 @@ class StateManager:
             # Reset error states when algorithm is reset
             self.start_node_error.set(False)
             self.target_node_error.set(False)
+            self.map_location_error.set(False)
             
             # Reset prediction game state when algorithm is reset
             self.reset_game_state()

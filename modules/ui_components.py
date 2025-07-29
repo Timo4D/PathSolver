@@ -27,6 +27,7 @@ class GraphType(Enum):
     KOOT_EXAMPLE_DEUTSCHLAND = "koot_example_deutschland"
     EDGE_LIST = "edge_list"
     CSV_FILE = "csv_file"
+    MAP_LOCATION = "map_location"
 
 
 def main_ui():
@@ -54,6 +55,7 @@ def main_ui():
                     "layout_seed", "Layout Seed", value=DEFAULT_LAYOUT_SEED, min=0
                 ),
             ),
+            ui.output_ui("map_mode_indicator"),
             output_cytoscape_graph("cytoscape_graph"),
             ui.output_ui("progress_bar"),
             ui.output_ui("prediction_game_ui"),
@@ -76,6 +78,7 @@ def graph_selection_ui():
             GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Germany Example",
             GraphType.EDGE_LIST.value: "Import from Edgelist",
             GraphType.CSV_FILE.value: "Upload a CSV file",
+            GraphType.MAP_LOCATION.value: "Real Map Location",
         },
         selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value,
     )
@@ -229,6 +232,35 @@ def render_graph_generator_settings(graph_type):
                 "edge_list_file",
                 ui.span("Upload an edge list", ui.output_ui("edge_list_error_message")),
             )
+        )
+    elif graph_type == GraphType.MAP_LOCATION.value:
+        return ui.TagList(
+            ui.input_text(
+                "map_location_input",
+                ui.span("Location", ui.output_ui("map_location_error_message")),
+                value="Beethovenstraße 1, 73430 Aalen",
+                placeholder="Enter city, address, or landmark",
+            ),
+            ui.input_slider(
+                "map_distance_slider",
+                "Area size (meters)",
+                100,
+                1000,
+                500,
+                step=50,
+            ),
+            ui.input_slider(
+                "map_max_nodes_slider",
+                "Maximum nodes",
+                15,
+                50,
+                30,
+                step=5,
+            ),
+            ui.p(
+                "Note: Larger areas and more nodes may take longer to load.",
+                style="font-size: 0.9em; color: #666; margin-top: 10px;",
+            ),
         )
 
 

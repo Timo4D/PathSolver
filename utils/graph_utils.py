@@ -89,8 +89,24 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
     # Create bidirectional edge set like matplotlib does
     current_edges_set = {(u, v) for u, v in current_edges} | {(v, u) for u, v in current_edges}
     
+    # Check if this is a map-based graph
+    is_map_graph = graph.graph.get('is_map_graph', False)
+    
     # Convert NetworkX graph to Cytoscape format
     elements = []
+    
+    # Calculate coordinate conversion for map graphs
+    if is_map_graph:
+        bounds = graph.graph.get('bounds', (0, 0, 0, 0))
+        min_lat, max_lat, min_lon, max_lon = bounds
+        if max_lat != min_lat and max_lon != min_lon:
+            # Scale to reasonable canvas size (800x600)
+            lat_range = max_lat - min_lat
+            lon_range = max_lon - min_lon
+            scale_factor = min(800 / lon_range, 600 / lat_range) if lat_range > 0 and lon_range > 0 else 1
+        else:
+            scale_factor = 1
+            min_lat = min_lon = 0
     
     # Add nodes
     for node in graph.nodes(data=True):
@@ -125,8 +141,14 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
             }
         }
         
-        # Add position if stored in node attributes
-        if "x" in node_attrs and "y" in node_attrs:
+        # Handle positioning based on graph type
+        if is_map_graph and 'lat' in node_attrs and 'lon' in node_attrs:
+            # Convert lat/lon to screen coordinates for map graphs
+            x = (node_attrs['lon'] - min_lon) * scale_factor
+            y = (max_lat - node_attrs['lat']) * scale_factor  # Flip Y axis for screen coordinates
+            node_data["position"] = {"x": x, "y": y}
+        elif "x" in node_attrs and "y" in node_attrs:
+            # Use existing coordinates
             node_data["position"] = {
                 "x": node_attrs["x"],
                 "y": node_attrs["y"]
@@ -258,8 +280,17 @@ def get_cytoscape_styles():
     ]
 
 
-def get_cytoscape_layout():
-    """Get default Cytoscape layout."""
-    return {
-        "name": "cose"
-    }
+def get_cytoscape_layout(graph=None):
+    """Get Cytoscape layout based on graph type."""
+    if graph and graph.graph.get('is_map_graph', False):
+        # Use preset layout for map graphs with fixed coordinates
+        return {
+            "name": "preset",
+            "fit": True,
+            "padding": 50
+        }
+    else:
+        # Use cose layout for abstract graphs
+        return {
+            "name": "cose"
+        }

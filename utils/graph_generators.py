@@ -1,6 +1,7 @@
 import random
 
 import networkx as nx
+from .map_utils import fetch_road_network, simplify_road_network, add_map_mode_to_graph
 
 
 def generate_random_graph(n, k, p):
@@ -62,3 +63,34 @@ def generate_from_edge_list(edgelist: str):
         return G
     else:
         return "Graph is not connected"
+
+
+def generate_from_map_location(location: str, distance: int = 1000, max_nodes: int = 30):
+    """
+    Generate a graph from a real map location using OpenStreetMap data.
+    
+    Args:
+        location: Location name or address (e.g., "Times Square, New York, USA")
+        distance: Distance in meters from the location center
+        max_nodes: Maximum number of nodes in the simplified graph
+    
+    Returns:
+        NetworkX Graph representing the road network, or error string
+    """
+    try:
+        # Fetch the road network
+        osm_graph = fetch_road_network(location, distance=distance)
+        
+        # Simplify for visualization and algorithm performance
+        simplified_graph = simplify_road_network(osm_graph, max_nodes=max_nodes)
+        
+        # Add map metadata and labels
+        map_graph = add_map_mode_to_graph(simplified_graph, location)
+        
+        if not nx.is_connected(map_graph):
+            return "Road network is not connected - try a different location or larger distance"
+        
+        return map_graph
+        
+    except Exception as e:
+        return f"Failed to generate map graph: {str(e)}"

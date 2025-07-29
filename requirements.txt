@@ -4,3 +4,6 @@ scipy
 networkx
 pandas
 htmltools
+osmnx
+requests
+folium

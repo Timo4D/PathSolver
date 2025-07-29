@@ -16,7 +16,7 @@ from modules.algorithm_logic import DijkstraStepHandler
 from modules.cytoscape.graph_component import render_cytoscape
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal_server
-from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
+from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list, generate_from_map_location
 from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout
 
 
@@ -131,6 +131,26 @@ def graph_ui_server(input, output, session):
     def edge_list_error_message():
         return render_error_tooltip(state_manager.invalid_edge_list.get())
 
+    @output
+    @render.ui
+    def map_location_error_message():
+        return render_error_tooltip(state_manager.map_location_error.get())
+
+    @output
+    @render.ui
+    def map_mode_indicator():
+        """Show indicator when graph is in map mode."""
+        graph = state_manager.graph.get()
+        if graph and graph.graph.get('is_map_graph', False):
+            location_name = graph.graph.get('location_name', 'Unknown Location')
+            return ui.div(
+                ui.tags.i(class_="fas fa-map-marker-alt", style="color: #2196F3; margin-right: 8px;"),
+                ui.strong("Map Mode: ", style="color: #2196F3;"),
+                ui.span(location_name, style="color: #666;"),
+                style="background-color: #f0f8ff; border: 1px solid #2196F3; border-radius: 4px; padding: 8px 12px; margin-bottom: 10px; font-size: 0.9em;",
+            )
+        return None
+
 
     @reactive.Effect
     @reactive.event(input.submit_solution)
@@ -208,7 +228,7 @@ def graph_ui_server(input, output, session):
         return {
             "elements": elements,
             "style": get_cytoscape_styles(),
-            "layout": get_cytoscape_layout()
+            "layout": get_cytoscape_layout(state_manager.graph.get())
         }
 
     @reactive.Effect
@@ -462,3 +482,24 @@ def _update_graph_based_on_selection(input):
                 state_manager.graph.set(result)
         else:
             state_manager.graph.set(edge_list_input)
+    elif input.selectize_graph() == GraphType.MAP_LOCATION.value:
+        location = input.map_location_input()
+        if location and location.strip():
+            try:
+                result = generate_from_map_location(
+                    location.strip(),
+                    distance=input.map_distance_slider(),
+                    max_nodes=input.map_max_nodes_slider()
+                )
+                if isinstance(result, str):
+                    state_manager.map_location_error.set(True)
+                    state_manager.step_explanation.set(TagList(result))
+                else:
+                    state_manager.map_location_error.set(False)
+                    state_manager.graph.set(result)
+            except Exception as e:
+                state_manager.map_location_error.set(True)
+                state_manager.step_explanation.set(TagList(f"Error loading map: {str(e)}"))
+        else:
+            state_manager.map_location_error.set(True)
+            state_manager.step_explanation.set(TagList("Please enter a valid location"))

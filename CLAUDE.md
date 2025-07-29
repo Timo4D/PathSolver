@@ -10,16 +10,28 @@ PathSolver is a Python Shiny web application that visualizes the Dijkstra shorte
 
 ### Setup and Installation
 ```bash
+# Upgrade pip and install core dependencies
 pip install --upgrade pip wheel shiny htmltools shinyswatch
+
+# Install all project dependencies
 pip install -r requirements.txt
 ```
+
+### Dependencies
+The project uses these key Python packages:
+- **shiny**: Web framework for reactive Python applications
+- **matplotlib**: Graph plotting and visualization
+- **networkx**: Graph data structures and algorithms
+- **pandas**: Data manipulation and analysis
+- **htmltools**: HTML generation utilities for Shiny
+- **scipy**: Scientific computing utilities
 
 ### Running the Application
 ```bash
 # Run with auto-reload and browser launch
 shiny run --reload --launch-browser app.py
 
-# Alternative entry point
+# Alternative entry point (runs on localhost:8000)
 python run.py
 ```
 
