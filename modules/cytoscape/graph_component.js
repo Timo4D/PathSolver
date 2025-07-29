@@ -245,6 +245,32 @@ if (Shiny) {
           selector: 'edge',
           commands: [
             {
+              content: '⚖️ Edit Weight',
+              contentStyle: {},
+              select: function(ele) {
+                const currentWeight = ele.data('weight') || 1;
+                const newWeight = prompt(`Enter new weight for edge ${ele.source().id()}-${ele.target().id()}:`, currentWeight);
+                
+                if (newWeight !== null && newWeight !== '') {
+                  const weightValue = parseFloat(newWeight);
+                  
+                  if (!isNaN(weightValue) && weightValue > 0) {
+                    console.log('Updating edge weight:', ele.id(), 'to', weightValue);
+                    
+                    Shiny.setInputValue(`${outputId}_update_edge_weight`, {
+                      id: ele.id(),
+                      source: ele.source().id(),
+                      target: ele.target().id(),
+                      weight: weightValue,
+                      timestamp: Date.now()
+                    });
+                  } else {
+                    alert('Please enter a positive number for the weight.');
+                  }
+                }
+              }
+            },
+            {
               content: '🗑️ Delete Edge',
               contentStyle: {},
               select: function(ele) {

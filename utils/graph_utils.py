@@ -74,15 +74,18 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
     plt.axis('off')
 
 
-def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target_node=None, nodes_visited=None, current_edges=None):
+def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target_node=None, nodes_visited=None, current_edges=None, distances=None):
     """Convert NetworkX graph to Cytoscape format."""
     if not graph or len(graph.nodes) == 0:
         return {"elements": [], "style": [], "layout": {"name": "circle"}}
     
     if nodes_visited is None:
         nodes_visited = set()
-    if current_edges is None:
+    if current_edges is None or not isinstance(current_edges, (list, tuple)):
         current_edges = []
+    
+    # Create bidirectional edge set like matplotlib does
+    current_edges_set = {(u, v) for u, v in current_edges} | {(v, u) for u, v in current_edges}
     
     # Convert NetworkX graph to Cytoscape format
     elements = []
@@ -90,10 +93,33 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
     # Add nodes
     for node in graph.nodes(data=True):
         node_id, node_attrs = node
+        
+        # Build compound label like matplotlib does
+        label_parts = []
+        
+        # Add distance above (like matplotlib y + 0.13)
+        if distances is not None and not distances.empty and "Cost" in distances.columns:
+            if node_id in distances["Cost"]:
+                dist_value = distances["Cost"][node_id]
+                if dist_value == float('inf'):
+                    label_parts.append("∞")
+                else:
+                    label_parts.append(str(int(dist_value) if isinstance(dist_value, float) else dist_value))
+        
+        # Add main node ID (center)
+        label_parts.append(str(node_id))
+        
+        # Add custom label below (like matplotlib y - 0.13) 
+        if "label" in node_attrs:
+            label_parts.append(str(node_attrs["label"]))
+        
+        # Join with newlines to create multi-line label
+        compound_label = "\n".join(label_parts)
+        
         node_data = {
             "data": {
                 "id": str(node_id),
-                "label": str(node_id)
+                "label": compound_label
             }
         }
         
@@ -128,8 +154,8 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
             }
         }
         
-        # Highlight current edges
-        if (source, target) in current_edges or (target, source) in current_edges:
+        # Highlight current edges using the bidirectional set
+        if (source, target) in current_edges_set:
             edge_data["classes"] = "current"
         
         elements.append(edge_data)
@@ -138,19 +164,21 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
 
 
 def get_cytoscape_styles():
-    """Get Cytoscape styles for different node and edge states."""
+    """Get Cytoscape styles for different node and edge states to match matplotlib colors."""
     return [
         {
             "selector": "node",
             "style": {
-                "background-color": "#4CAF50",
+                "background-color": "#1f77b4",  # tab:blue
                 "color": "#fff",
                 "label": "data(label)",
-                "width": 40,
-                "height": 40,
+                "width": 60,  # Increased to accommodate multi-line labels
+                "height": 60,  # Increased to accommodate multi-line labels
                 "text-valign": "center",
                 "text-halign": "center",
-                "font-size": "12px"
+                "font-size": "12px",
+                "text-wrap": "wrap",  # Allow text wrapping
+                "text-max-width": "100px"  # Limit text width
             }
         },
         {
@@ -164,21 +192,21 @@ def get_cytoscape_styles():
         {
             "selector": "node.start",
             "style": {
-                "background-color": "#2196F3",
+                "background-color": "#2ca02c",  # tab:green
             }
         },
         {
             "selector": "node.target", 
             "style": {
-                "background-color": "#FF5722",
+                "background-color": "#d62728",  # tab:red
             }
         },
         {
             "selector": "node.current",
             "style": {
-                "background-color": "#FFC107",
+                "background-color": "#ff1493",  # tab:pink
                 "border-width": 3,
-                "border-color": "#FF9800"
+                "border-color": "#ff69b4"
             }
         },
         {
@@ -191,8 +219,8 @@ def get_cytoscape_styles():
             "selector": "edge",
             "style": {
                 "width": 2,
-                "line-color": "#666",
-                "target-arrow-color": "#666",
+                "line-color": "#000000",  # Default black color like matplotlib
+                "target-arrow-color": "#000000",
                 "target-arrow-shape": "triangle",
                 "label": "data(weight)",
                 "font-size": "10px"
@@ -202,8 +230,8 @@ def get_cytoscape_styles():
             "selector": "edge.current",
             "style": {
                 "width": 4,
-                "line-color": "#FFC107",
-                "target-arrow-color": "#FFC107"
+                "line-color": "#d62728",  # tab:red to match matplotlib current edges
+                "target-arrow-color": "#d62728"
             }
         }
     ]

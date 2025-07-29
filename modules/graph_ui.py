@@ -169,7 +169,7 @@ def graph_ui_server(input, output, session):
     @render_cytoscape
     @reactive.event(
         state_manager.graph, input.start_node, input.target_node, 
-        state_manager.current_node, state_manager.current_edges
+        state_manager.current_node, state_manager.current_edges, state_manager.distances_df
     )
     def cytoscape_graph():
         """Render the graph using Cytoscape.js."""
@@ -180,7 +180,8 @@ def graph_ui_server(input, output, session):
             start_node=input.start_node(),
             target_node=input.target_node(),
             nodes_visited=state_manager.nodes_visited.get(),
-            current_edges=state_manager.current_edges.get()
+            current_edges=state_manager.current_edges.get(),
+            distances=state_manager.distances_df.get()
         )
         
         return {
@@ -378,6 +379,36 @@ def graph_ui_server(input, output, session):
             else:
                 state_manager.step_explanation.set(
                     TagList(f"Cannot create edge: Invalid nodes {source_id} or {target_id}")
+                )
+
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_update_edge_weight)
+    def handle_update_edge_weight():
+        """Handle updating the weight of an edge."""
+        data = input.cytoscape_graph_update_edge_weight()
+        if data and "source" in data and "target" in data and "weight" in data:
+            source_id = int(data["source"])
+            target_id = int(data["target"])
+            new_weight = float(data["weight"])
+            graph = state_manager.graph.get()
+            
+            if graph and graph.has_edge(source_id, target_id):
+                # Create a copy of the graph and update the edge weight
+                graph_copy = graph.copy()
+                graph_copy[source_id][target_id]['weight'] = new_weight
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Reset algorithm state since edge weights changed
+                state_manager.reset_algorithm_state()
+                
+                state_manager.step_explanation.set(
+                    TagList(f"Updated weight of edge {source_id}-{target_id} to {new_weight}")
+                )
+            else:
+                state_manager.step_explanation.set(
+                    TagList(f"Cannot update weight: Edge {source_id}-{target_id} does not exist")
                 )
 
     # Initialize tutorial modal server
