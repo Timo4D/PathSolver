@@ -33,10 +33,10 @@ DEFAULT_REWIRE_PROB = 0.5
 
 # UI text
 STEP_HEADINGS = {
-    STEP_INITIALIZE: "Step 0: Initialize",
-    STEP_VISIT_NODES: "Step 1: Visit Nodes", 
-    STEP_FIND_NEXT_NODE: "Step 2: Look For Next Node",
-    STEP_FINISH: "Step 3: Finish",
+    STEP_INITIALIZE: "Step 0: Initialize Algorithm",
+    STEP_VISIT_NODES: "Step 1: Examine Current Node's Neighbors", 
+    STEP_FIND_NEXT_NODE: "Step 2: Select Next Node to Visit",
+    STEP_FINISH: "Step 3: Finish Algorithm",
     STEP_SHOW_SOLUTION: "Congratulations! Your solution is correct."
 }
 

@@ -183,10 +183,17 @@ def create_progress_bar(step_counter):
     )
 
 
-def create_explanation_ui(step_counter, step_explanation):
+def create_explanation_ui(step_counter, step_explanation, global_step_counter=None):
     """Create step explanation UI."""
+    # Create the main heading
+    heading = STEP_HEADINGS.get(step_counter)
+    
+    # Add global step counter if provided
+    if global_step_counter is not None and global_step_counter > 0:
+        heading = f"Overall Progress: Step {global_step_counter} | {heading}"
+    
     return TagList(
-        ui.h1(STEP_HEADINGS.get(step_counter), style="margin-bottom: 0;"),
+        ui.h1(heading, style="margin-bottom: 0;"),
         ui.p(step_explanation, style="margin-top: 0;"),
     )
 

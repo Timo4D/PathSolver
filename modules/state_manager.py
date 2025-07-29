@@ -20,6 +20,7 @@ class StateManager:
         
         # Algorithm progress state
         self.step_counter = reactive.Value(0)
+        self.global_step_counter = reactive.Value(0)  # Always increasing step counter
         self.current_node = reactive.Value(None)
         self.current_edges = reactive.Value([])
         self.distance = reactive.Value(0)
@@ -51,6 +52,7 @@ class StateManager:
         state = {
             "distances_df": self.distances_df.get().copy(),
             "step_counter": self.step_counter.get(),
+            "global_step_counter": self.global_step_counter.get(),
             "nodes_visited": self.nodes_visited.get().copy(),
             "current_edges": self.current_edges.get().copy(),
             "current_node": self.current_node.get(),
@@ -64,6 +66,7 @@ class StateManager:
             state = self.state_history.get().pop()
             self.distances_df.set(state["distances_df"])
             self.step_counter.set(state["step_counter"])
+            self.global_step_counter.set(state["global_step_counter"])
             self.nodes_visited.set(state["nodes_visited"])
             self.current_edges.set(state["current_edges"])
             self.current_node.set(state["current_node"])
@@ -81,6 +84,7 @@ class StateManager:
             distance_matrix.reset_index(inplace=True)
             self.distances_df.set(distance_matrix)
             self.step_counter.set(0)
+            self.global_step_counter.set(0)
             self.nodes_visited.set([])
             self.current_edges.set([])
             self.current_node.set(None)

@@ -60,10 +60,12 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
+    @reactive.event(state_manager.step_counter, state_manager.step_explanation, state_manager.global_step_counter)
     def explain():
         return create_explanation_ui(
             state_manager.step_counter.get(),
-            state_manager.step_explanation.get()
+            state_manager.step_explanation.get(),
+            state_manager.global_step_counter.get()
         )
 
     @output

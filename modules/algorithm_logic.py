@@ -24,6 +24,9 @@ class DijkstraStepHandler:
         df = self.state.distances_df.get()
         G = self.state.graph.get()
         
+        # Increment global step counter for each action
+        self.state.global_step_counter.set(self.state.global_step_counter.get() + 1)
+        
         # Clear any previous error states when starting algorithm
         if step == STEP_INITIALIZE:
             self.state.start_node_error.set(False)
@@ -45,7 +48,7 @@ class DijkstraStepHandler:
     def initialize_step(self, input, df, G):
         """Initialize the first step of the algorithm."""
         self.state.step_explanation.set(
-            TagList("First set distance to start node to 0 and every other node to infinity")
+            TagList("🚀 Starting Dijkstra's algorithm! First set distance to start node to 0 and every other node to infinity")
         )
         
         # Check if the graph is connected before proceeding
@@ -203,13 +206,15 @@ class DijkstraStepHandler:
                 ui.br()
             )
 
+        current_node = self.state.current_node.get()
+        nodes_visited_count = len(self.state.nodes_visited.get())
         self.state.step_explanation.set(
             TagList(
-                "Now look at the possible unvisited neighbours", ui.br(),
+                f"🔍 Now examining neighbors of node {current_node} (visited {nodes_visited_count} nodes so far)", ui.br(),
                 nodes_visited_text,
                 "You need to calculate the cost of all unvisited neighbours. To do this add the distance to your current node + the weight of the edge.",
                 ui.br(),
-                "If the weight is lower that whats already calculated we need to update it, otherwise we won't change it",
+                "If the weight is lower than what's already calculated we need to update it, otherwise we won't change it",
                 ui.br(),
             )
         )
@@ -290,11 +295,14 @@ class DijkstraStepHandler:
             )
             self.state.step_counter.set(self.state.step_counter.get() + 1)
         else:
+            nodes_visited_count = len(self.state.nodes_visited.get())
+            total_nodes = len(G.nodes())
             self.state.step_explanation.set(
                 TagList(
-                    f"You can see that {min_cost_node} is the node with the lowest cost that we have not visited yet, so {self.state.current_node.get()} is our new Node. ",
-                    ui.br(),
-                    f"Also notice that {self.state.current_node.get()} is not our Target Node, so we need to continue and do the previous step again",
+                    f"✅ Selected node {min_cost_node} (lowest unvisited cost) as our new current node.", ui.br(),
+                    f"🔄 Since {self.state.current_node.get()} is not our target node, we'll continue the algorithm by examining its neighbors next.",
+                    ui.br(), ui.br(),
+                    f"Progress: {nodes_visited_count}/{total_nodes} nodes visited. This is the core of Dijkstra's algorithm: repeatedly select the unvisited node with minimum distance and explore its neighbors.",
                     ui.br()
                 )
             )
@@ -355,13 +363,16 @@ class DijkstraStepHandler:
             )
             self.state.step_counter.set(self.state.step_counter.get() + 1)
         else:
+            nodes_visited_count = len(self.state.nodes_visited.get())  
+            total_nodes = len(G.nodes())
             self.state.step_explanation.set(
                 TagList(
                     f"{'✅ Correct prediction!' if is_correct else '❌ Incorrect prediction.'} The algorithm selected node {correct_node}.",
                     ui.br(), ui.br(),
-                    f"You can see that {correct_node} is the node with the lowest cost that we have not visited yet, so {correct_node} is our new Node. ",
-                    ui.br(),
-                    f"Also notice that {correct_node} is not our Target Node, so we need to continue and do the previous step again",
+                    f"✅ Selected node {correct_node} (lowest unvisited cost) as our new current node.", ui.br(),
+                    f"🔄 Since {correct_node} is not our target node, we'll continue the algorithm by examining its neighbors next.",
+                    ui.br(), ui.br(),
+                    f"Progress: {nodes_visited_count}/{total_nodes} nodes visited. This is the core of Dijkstra's algorithm: repeatedly select the unvisited node with minimum distance and explore its neighbors.",
                     ui.br()
                 )
             )
