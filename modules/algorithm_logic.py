@@ -240,7 +240,40 @@ class DijkstraStepHandler:
             min_cost_node = label_to_node[min_cost_lookup_value]
         else:
             min_cost_node = min_cost_lookup_value
+        
+        # Check if prediction game is enabled and we should wait for user prediction
+        if self.state.game_enabled.get() and not self.state.waiting_for_prediction.get():
+            # Get list of candidate nodes (unvisited nodes with finite costs)
+            finite_cost_nodes = unvisited_nodes[unvisited_nodes["Cost"] != float('inf')]
             
+            if len(finite_cost_nodes) > 1:  # Only ask for prediction if there are choices
+                # Store the correct answer and candidates
+                candidates = []
+                for _, row in finite_cost_nodes.iterrows():
+                    node_lookup = row.iloc[0]
+                    if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+                        label_to_node = {v: k for k, v in nx.get_node_attributes(G, "label").items()}
+                        node_id = label_to_node[node_lookup]
+                    else:
+                        node_id = node_lookup
+                    candidates.append(node_id)
+                
+                self.state.prediction_candidates.set(candidates)
+                self.state.waiting_for_prediction.set(True)
+                
+                # Don't proceed with algorithm until prediction is made
+                self.state.step_explanation.set(
+                    TagList(
+                        "🎮 Prediction Game: Which node will Dijkstra visit next?",
+                        ui.br(), ui.br(),
+                        "Look at the unvisited nodes in the distance table and click on the one with the lowest cost in the graph above!",
+                        ui.br(), ui.br(),
+                        f"Unvisited nodes with finite distances: {candidates}"
+                    )
+                )
+                return
+        
+        # Normal algorithm flow - set the current node
         self.state.current_node.set(min_cost_node)
 
         if self.state.current_node.get() == input.target_node():
@@ -268,6 +301,75 @@ class DijkstraStepHandler:
             self.state.step_counter.set(self.state.step_counter.get() - 1)
         
         self.state.nodes_visited.set(self.state.nodes_visited.get() + [self.state.current_node.get()])
+    
+    def handle_prediction(self, predicted_node, input):
+        """Handle user prediction in game mode."""
+        if not self.state.waiting_for_prediction.get():
+            return False
+        
+        # Get the correct answer using the same logic as set_new_current_node
+        df = self.state.distances_df.get()
+        G = self.state.graph.get()
+        
+        # Filter out visited nodes from the DataFrame
+        visited_lookup_values = []
+        for visited_node in self.state.nodes_visited.get():
+            if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+                visited_lookup_values.append(nx.get_node_attributes(G, "label")[visited_node])
+            else:
+                visited_lookup_values.append(visited_node)
+        
+        unvisited_nodes = df[~df.iloc[:, 0].isin(visited_lookup_values)]
+        min_cost_row_idx = unvisited_nodes["Cost"].idxmin()
+        min_cost_lookup_value = df.iloc[min_cost_row_idx, 0]
+        
+        # Convert to node ID
+        if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+            label_to_node = {v: k for k, v in nx.get_node_attributes(G, "label").items()}
+            correct_node = label_to_node[min_cost_lookup_value]
+        else:
+            correct_node = min_cost_lookup_value
+        
+        # Handle the prediction
+        is_correct = self.state.handle_prediction(predicted_node, correct_node)
+        
+        # Clear prediction candidates to remove highlighting
+        self.state.prediction_candidates.set([])
+        
+        # Continue with the algorithm
+        self.state.current_node.set(correct_node)
+        
+        if correct_node == input.target_node():
+            self.state.step_explanation.set(
+                TagList(
+                    f"{'✅ Correct prediction!' if is_correct else '❌ Incorrect prediction.'} The algorithm selected node {correct_node}.",
+                    ui.br(), ui.br(),
+                    "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it",
+                    ui.br(),
+                    "You now have to enter your solution of the fastest path in new Box below. If it is correct you will see the path on the graph.",
+                    ui.br(),
+                    "The weights of the edges are now hidden, so try to get the solution with help of the table below.",
+                    ui.br(),
+                    "The Dijkstra Algorithm would trace the way from the Target node via its previous node until it arrives at the start node",
+                )
+            )
+            self.state.step_counter.set(self.state.step_counter.get() + 1)
+        else:
+            self.state.step_explanation.set(
+                TagList(
+                    f"{'✅ Correct prediction!' if is_correct else '❌ Incorrect prediction.'} The algorithm selected node {correct_node}.",
+                    ui.br(), ui.br(),
+                    f"You can see that {correct_node} is the node with the lowest cost that we have not visited yet, so {correct_node} is our new Node. ",
+                    ui.br(),
+                    f"Also notice that {correct_node} is not our Target Node, so we need to continue and do the previous step again",
+                    ui.br()
+                )
+            )
+            self.state.step_counter.set(self.state.step_counter.get() - 1)
+        
+        self.state.nodes_visited.set(self.state.nodes_visited.get() + [correct_node])
+        
+        return is_correct
     
     def show_solution(self, solution):
         """Show the final solution path."""

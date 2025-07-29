@@ -35,6 +35,7 @@ def main_ui():
         ui.layout_sidebar(
             ui.sidebar(
                 tutorial_modal(),
+                prediction_game_toggle_ui(),
                 graph_selection_ui(),
                 ui.output_ui("graph_generator_settings"),
                 ui.input_numeric(
@@ -54,8 +55,8 @@ def main_ui():
                 ),
             ),
             output_cytoscape_graph("cytoscape_graph"),
-            ui.output_plot("graph_plot"),
             ui.output_ui("progress_bar"),
+            ui.output_ui("prediction_game_ui"),
             ui.output_ui("explain"),
             ui.row(
                 ui.column(6, ui.output_ui("render_solution_quiz_ui"), distances_ui()),
@@ -102,6 +103,67 @@ def algorithm_explanation_ui():
     return ui.card(
         ui.card_header("Explanation of the Algorithm"),
         ui.card_body(dijkstra_explanation),
+    )
+
+
+def prediction_game_toggle_ui():
+    """Toggle for enabling prediction game mode."""
+    return ui.input_switch(
+        "game_enabled",
+        "🎮 Prediction Game Mode",
+        value=False,
+    )
+
+
+def create_prediction_game_ui(
+    waiting_for_prediction, game_score, consecutive_correct, 
+    total_predictions, correct_predictions, last_prediction_correct
+):
+    """Create prediction game UI when waiting for user prediction."""
+    if not waiting_for_prediction:
+        return None
+    
+    # Calculate accuracy percentage
+    accuracy = 0
+    if total_predictions > 0:
+        accuracy = round((correct_predictions / total_predictions) * 100, 1)
+    
+    # Feedback message for last prediction
+    feedback_message = ""
+    feedback_style = ""
+    if last_prediction_correct is not None:
+        if last_prediction_correct:
+            feedback_message = f"✅ Correct! +{10 + min(consecutive_correct * 2, 20)} points"
+            feedback_style = "color: #28a745; font-weight: bold;"
+        else:
+            feedback_message = "❌ Incorrect. The algorithm chose a different node."
+            feedback_style = "color: #dc3545; font-weight: bold;"
+    
+    return ui.card(
+        ui.card_header(
+            ui.div(
+                "🎯 Prediction Challenge",
+                style="display: inline-block; margin-right: 20px;"
+            ),
+            ui.div(
+                f"Score: {game_score} | Streak: {consecutive_correct} | Accuracy: {accuracy}%",
+                style="display: inline-block; font-size: 0.9em;"
+            ),
+            style="display: flex; justify-content: space-between; align-items: center;"
+        ),
+        ui.card_body(
+            ui.div(feedback_message, style=feedback_style) if feedback_message else None,
+            ui.h4("Which node will Dijkstra visit next?", style="color: #007bff; margin-top: 10px;"),
+            ui.p(
+                "Look at the distances table and click on the unvisited node with the lowest cost!",
+                style="margin-bottom: 15px;"
+            ),
+            ui.div(
+                "💡 The algorithm always selects the unvisited node with the minimum distance.",
+                style="background-color: #e7f3ff; padding: 10px; border-radius: 5px; font-style: italic;"
+            )
+        ),
+        style="border: 2px solid #007bff; box-shadow: 0 4px 8px rgba(0,123,255,0.2);"
     )
 
 

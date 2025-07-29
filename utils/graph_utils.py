@@ -74,7 +74,7 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
     plt.axis('off')
 
 
-def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target_node=None, nodes_visited=None, current_edges=None, distances=None):
+def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target_node=None, nodes_visited=None, current_edges=None, distances=None, prediction_candidates=None):
     """Convert NetworkX graph to Cytoscape format."""
     if not graph or len(graph.nodes) == 0:
         return {"elements": [], "style": [], "layout": {"name": "circle"}}
@@ -83,6 +83,8 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
         nodes_visited = set()
     if current_edges is None or not isinstance(current_edges, (list, tuple)):
         current_edges = []
+    if prediction_candidates is None:
+        prediction_candidates = []
     
     # Create bidirectional edge set like matplotlib does
     current_edges_set = {(u, v) for u, v in current_edges} | {(v, u) for u, v in current_edges}
@@ -130,15 +132,24 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
                 "y": node_attrs["y"]
             }
         
-        # Style nodes based on current state
+        # Style nodes based on current state (order matters for priority)
+        classes = []
+        
         if node_id == current_node:
-            node_data["classes"] = "current"
+            classes.append("current")
         elif node_id == start_node:
-            node_data["classes"] = "start"
+            classes.append("start")
         elif node_id == target_node:
-            node_data["classes"] = "target"
+            classes.append("target")
         elif node_id in nodes_visited:
-            node_data["classes"] = "visited"
+            classes.append("visited")
+        
+        # Add prediction candidate class if applicable
+        if node_id in prediction_candidates:
+            classes.append("prediction-candidate")
+        
+        if classes:
+            node_data["classes"] = " ".join(classes)
         
         elements.append(node_data)
     
@@ -172,13 +183,14 @@ def get_cytoscape_styles():
                 "background-color": "#1f77b4",  # tab:blue
                 "color": "#fff",
                 "label": "data(label)",
-                "width": 60,  # Increased to accommodate multi-line labels
-                "height": 60,  # Increased to accommodate multi-line labels
+                "width": 70,  # Increased to accommodate multi-line labels
+                "height": 70,  # Increased to accommodate multi-line labels
                 "text-valign": "center",
                 "text-halign": "center",
-                "font-size": "12px",
+                "font-size": "16px",  # Increased from 12px to 16px
+                "font-weight": "bold",  # Make text bold for better readability
                 "text-wrap": "wrap",  # Allow text wrapping
-                "text-max-width": "100px"  # Limit text width
+                "text-max-width": "120px"  # Increased text width limit
             }
         },
         {
@@ -187,6 +199,15 @@ def get_cytoscape_styles():
                 "background-color": "#FF9800",
                 "border-width": 3,
                 "border-color": "#FF5722"
+            }
+        },
+        {
+            "selector": "node.prediction-candidate",
+            "style": {
+                "border-width": 4,
+                "border-color": "#007bff",
+                "border-style": "dashed",
+                "background-color": "#e7f3ff"
             }
         },
         {

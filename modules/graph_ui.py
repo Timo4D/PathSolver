@@ -9,7 +9,8 @@ from constants import DEFAULT_EDGE_LIST_PATH, STEP_FINISH
 from modules.state_manager import state_manager
 from modules.ui_components import (
     main_ui, GraphType, create_progress_bar, create_explanation_ui,
-    render_graph_generator_settings, render_error_tooltip, render_distances_table
+    render_graph_generator_settings, render_error_tooltip, render_distances_table,
+    create_prediction_game_ui
 )
 from modules.algorithm_logic import DijkstraStepHandler
 from modules.cytoscape.graph_component import render_cytoscape
@@ -34,6 +35,23 @@ def graph_ui_server(input, output, session):
     def render_solution_quiz_ui():
         if state_manager.step_counter.get() == STEP_FINISH:
             return render_solution_quiz()
+
+    @output
+    @render.ui
+    @reactive.event(
+        state_manager.waiting_for_prediction, state_manager.game_score,
+        state_manager.consecutive_correct, state_manager.total_predictions,
+        state_manager.correct_predictions, state_manager.last_prediction_correct
+    )
+    def prediction_game_ui():
+        return create_prediction_game_ui(
+            state_manager.waiting_for_prediction.get(),
+            state_manager.game_score.get(),
+            state_manager.consecutive_correct.get(),
+            state_manager.total_predictions.get(),
+            state_manager.correct_predictions.get(),
+            state_manager.last_prediction_correct.get()
+        )
 
     @output
     @render.ui
@@ -113,30 +131,31 @@ def graph_ui_server(input, output, session):
     def edge_list_error_message():
         return render_error_tooltip(state_manager.invalid_edge_list.get())
 
-    @output
-    @render.plot
-    @reactive.event(
-        input.selectize_graph, state_manager.graph, input.layout_seed, 
-        input.start_node, input.target_node, state_manager.current_node,
-        state_manager.current_edges
-    )
-    def graph_plot():
-        final_step = (state_manager.step_counter.get() == STEP_FINISH)
-        plot_graph(
-            state_manager.graph.get(),
-            input.start_node(),
-            input.target_node(),
-            input.layout_seed(),
-            state_manager.distances_df.get(),
-            state_manager.current_node.get(),
-            state_manager.current_edges.get(),
-            final_step
-        )
 
     @reactive.Effect
     @reactive.event(input.submit_solution)
     def check_user_solution():
         algorithm_handler.check_user_solution(input)
+    
+    @reactive.Effect
+    @reactive.event(input.game_enabled)
+    def toggle_game_mode():
+        state_manager.game_enabled.set(input.game_enabled())
+        if input.game_enabled():
+            state_manager.reset_game_state()
+    
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_node_clicked)
+    def handle_prediction_click():
+        """Handle node clicks for prediction game."""
+        if not state_manager.waiting_for_prediction.get():
+            return
+        
+        data = input.cytoscape_graph_node_clicked()
+        if data and "id" in data:
+            predicted_node = int(data["id"])
+            # Handle the prediction through the algorithm handler
+            algorithm_handler.handle_prediction(predicted_node, input)
 
     @reactive.calc
     def parsed_edge_list():
@@ -169,7 +188,8 @@ def graph_ui_server(input, output, session):
     @render_cytoscape
     @reactive.event(
         state_manager.graph, input.start_node, input.target_node, 
-        state_manager.current_node, state_manager.current_edges, state_manager.distances_df
+        state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
+        state_manager.prediction_candidates
     )
     def cytoscape_graph():
         """Render the graph using Cytoscape.js."""
@@ -181,7 +201,8 @@ def graph_ui_server(input, output, session):
             target_node=input.target_node(),
             nodes_visited=state_manager.nodes_visited.get(),
             current_edges=state_manager.current_edges.get(),
-            distances=state_manager.distances_df.get()
+            distances=state_manager.distances_df.get(),
+            prediction_candidates=state_manager.prediction_candidates.get()
         )
         
         return {

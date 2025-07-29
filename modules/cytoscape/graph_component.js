@@ -141,6 +141,7 @@ if (Shiny) {
           Shiny.setInputValue(`${outputId}_node_clicked`, {
             id: node.id(),
             label: node.data("label"),
+            timestamp: Date.now()
           });
         });
 

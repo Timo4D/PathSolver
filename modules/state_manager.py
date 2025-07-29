@@ -35,6 +35,16 @@ class StateManager:
         
         # History for undo functionality
         self.state_history = reactive.Value([])
+        
+        # Prediction game state
+        self.game_enabled = reactive.Value(False)
+        self.game_score = reactive.Value(0)
+        self.consecutive_correct = reactive.Value(0)
+        self.waiting_for_prediction = reactive.Value(False)
+        self.prediction_candidates = reactive.Value([])
+        self.last_prediction_correct = reactive.Value(None)
+        self.total_predictions = reactive.Value(0)
+        self.correct_predictions = reactive.Value(0)
     
     def save_state(self):
         """Save current state for undo functionality."""
@@ -80,6 +90,42 @@ class StateManager:
             # Reset error states when algorithm is reset
             self.start_node_error.set(False)
             self.target_node_error.set(False)
+            
+            # Reset prediction game state when algorithm is reset
+            self.reset_game_state()
+    
+    def reset_game_state(self):
+        """Reset prediction game state."""
+        self.game_score.set(0)
+        self.consecutive_correct.set(0)
+        self.waiting_for_prediction.set(False)
+        self.prediction_candidates.set([])
+        self.last_prediction_correct.set(None)
+        self.total_predictions.set(0)
+        self.correct_predictions.set(0)
+    
+    def handle_prediction(self, predicted_node, correct_node):
+        """Handle a prediction made by the user."""
+        is_correct = predicted_node == correct_node
+        
+        # Update statistics
+        self.total_predictions.set(self.total_predictions.get() + 1)
+        if is_correct:
+            self.correct_predictions.set(self.correct_predictions.get() + 1)
+            self.consecutive_correct.set(self.consecutive_correct.get() + 1)
+            
+            # Calculate score with bonus for consecutive correct answers
+            base_points = 10
+            bonus_points = min(self.consecutive_correct.get() * 2, 20)  # Max 20 bonus points
+            points_earned = base_points + bonus_points
+            self.game_score.set(self.game_score.get() + points_earned)
+        else:
+            self.consecutive_correct.set(0)
+        
+        self.last_prediction_correct.set(is_correct)
+        self.waiting_for_prediction.set(False)
+        
+        return is_correct
     
     def _get_graph_nodes_and_index_name(self, G):
         """Get nodes and index name based on graph structure."""
