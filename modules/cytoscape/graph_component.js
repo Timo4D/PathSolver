@@ -360,6 +360,124 @@ if (Shiny) {
 
         // Run the initial layout only once
         el._cytoscape.layout(layout || { name: "cose" }).run();
+        
+        // Set up resize functionality with a small delay to ensure DOM is ready
+        setTimeout(() => {
+          this.setupResizeHandlers(el);
+        }, 100);
+      }
+      
+      // Always try to set up resize handlers, regardless of new or existing instance
+      setTimeout(() => {
+        this.setupResizeHandlers(el);
+      }, 200);
+    }
+    
+    setupResizeHandlers(el) {
+      const container = el.closest('.resizable-cytoscape-container');
+      if (!container) {
+        return;
+      }
+      
+      const bottomHandle = container.querySelector('.resize-handle.bottom');
+      if (!bottomHandle) {
+        return;
+      }
+      
+      // Prevent duplicate event listeners
+      if (bottomHandle._resizeSetup) {
+        return;
+      }
+      bottomHandle._resizeSetup = true;
+      
+      let isResizing = false;
+      let startY, startHeight;
+      let resizeThrottle = null;
+      
+      const startResize = (e) => {
+        isResizing = true;
+        startY = e.clientY;
+        startHeight = parseInt(window.getComputedStyle(container).height, 10);
+        
+        document.body.style.cursor = 's-resize';
+        document.body.style.userSelect = 'none';
+        
+        e.preventDefault();
+        e.stopPropagation();
+      };
+      
+      const doResize = (e) => {
+        if (!isResizing) return;
+        
+        const dy = e.clientY - startY;
+        const newHeight = Math.max(300, Math.min(startHeight + dy, 800));
+        
+        container.style.height = newHeight + 'px';
+        
+        // Throttle cytoscape resize calls to reduce flashing
+        if (resizeThrottle) {
+          cancelAnimationFrame(resizeThrottle);
+        }
+        
+        resizeThrottle = requestAnimationFrame(() => {
+          if (el._cytoscape) {
+            el.style.width = '100%';
+            el.style.height = '100%';
+            el._cytoscape.resize();
+          }
+        });
+        
+        e.preventDefault();
+      };
+      
+      const stopResize = (e) => {
+        if (!isResizing) return;
+        
+        isResizing = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        
+        // Final resize call to ensure proper sizing
+        if (el._cytoscape) {
+          setTimeout(() => {
+            el._cytoscape.resize();
+          }, 50);
+        }
+      };
+      
+      // Attach event listener for bottom resize handle only
+      bottomHandle.addEventListener('mousedown', startResize);
+      
+      // Global mouse events for dragging
+      document.addEventListener('mousemove', (e) => {
+        if (isResizing) {
+          doResize(e);
+        }
+      });
+      
+      document.addEventListener('mouseup', (e) => {
+        if (isResizing) {
+          stopResize(e);
+        }
+      });
+      
+      // Handle CSS resize property (browser native resize)
+      if (window.ResizeObserver) {
+        const resizeObserver = new ResizeObserver((entries) => {
+          for (let entry of entries) {
+            if (entry.target === container && el._cytoscape) {
+              // Force the cytoscape element to take full container size
+              el.style.width = '100%';
+              el.style.height = '100%';
+              
+              requestAnimationFrame(() => {
+                el._cytoscape.resize();
+              });
+            }
+          }
+        });
+        
+        resizeObserver.observe(container);
       }
     }
   }
