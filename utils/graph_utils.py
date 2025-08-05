@@ -59,7 +59,7 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
 
     # Draw Distances
     if distances is not None and not distances["Cost"].empty:
-        distance_labels = distances["Cost"].replace(float('inf'), '∞').apply(
+        distance_labels = distances["Cost"].replace(float('inf'), 'ꝏ').apply(
             lambda x: int(x) if isinstance(x, float) else x)
 
         label_pos = {node: (coords[0], coords[1] + 0.13) for node, coords in pos.items()}
@@ -104,7 +104,7 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
             if node_id in distances["Cost"]:
                 dist_value = distances["Cost"][node_id]
                 if dist_value == float('inf'):
-                    label_parts.append("∞")
+                    label_parts.append("ꝏ")
                 else:
                     label_parts.append(str(int(dist_value) if isinstance(dist_value, float) else dist_value))
         
@@ -183,14 +183,14 @@ def get_cytoscape_styles():
                 "background-color": "#1f77b4",  # tab:blue
                 "color": "#fff",
                 "label": "data(label)",
-                "width": 70,  # Increased to accommodate multi-line labels
-                "height": 70,  # Increased to accommodate multi-line labels
+                "width": 80,  # Back to original size
+                "height": 80,  # Back to original size
                 "text-valign": "center",
                 "text-halign": "center",
-                "font-size": "16px",  # Increased from 12px to 16px
+                "font-size": "20px",  # Increased from 16px to 20px for better infinity symbol visibility
                 "font-weight": "bold",  # Make text bold for better readability
                 "text-wrap": "wrap",  # Allow text wrapping
-                "text-max-width": "120px"  # Increased text width limit
+                "text-max-width": "140px"  # Original text width limit
             }
         },
         {
@@ -244,7 +244,15 @@ def get_cytoscape_styles():
                 "target-arrow-color": "#000000",
                 "target-arrow-shape": "triangle",
                 "label": "data(weight)",
-                "font-size": "10px"
+                "font-size": "16px",
+                "font-weight": "bold",
+                "color": "#000000",
+                "text-background-color": "#ffffff",
+                "text-background-opacity": 0.8,
+                "text-background-padding": "3px",
+                "text-border-width": 1,
+                "text-border-color": "#cccccc",
+                "text-border-opacity": 0.8
             }
         },
         {
