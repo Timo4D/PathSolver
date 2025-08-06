@@ -43,6 +43,7 @@ class StateManager:
         
         # Prediction game state
         self.game_enabled = reactive.Value(self.config["settings"]["game_feature_enabled"])
+        self.game_difficulty = reactive.Value("medium")  # easy, medium, hard
         self.game_score = reactive.Value(0)
         self.consecutive_correct = reactive.Value(0)
         self.waiting_for_prediction = reactive.Value(False)
@@ -54,6 +55,7 @@ class StateManager:
         # Settings state
         self.visualization_mode = reactive.Value(self.config["settings"]["visualization_mode"])
         self.force_game_mode = reactive.Value(self.config["settings"]["force_game_mode"])
+        self.force_game_difficulty = reactive.Value(self.config["settings"]["force_game_difficulty"])
         self.settings_unlocked = reactive.Value(not self.config["settings"]["password_protected"])
         self.admin_password = self.config["settings"]["admin_password"]
     
@@ -153,6 +155,7 @@ class StateManager:
                 "settings": {
                     "game_feature_enabled": True,
                     "force_game_mode": False,
+                    "force_game_difficulty": None,
                     "visualization_mode": "cytoscape",
                     "password_protected": False,
                     "admin_password": "admin123"
@@ -185,6 +188,23 @@ class StateManager:
     def update_force_game_mode(self, enabled):
         """Update force game mode setting."""
         self.force_game_mode.set(enabled)
+    
+    def update_game_difficulty(self, difficulty):
+        """Update game difficulty setting."""
+        if difficulty in ["easy", "medium", "hard"]:
+            self.game_difficulty.set(difficulty)
+    
+    def update_force_game_difficulty(self, difficulty):
+        """Update forced game difficulty setting."""
+        if difficulty is None or difficulty in ["easy", "medium", "hard"]:
+            self.force_game_difficulty.set(difficulty)
+    
+    def get_effective_game_difficulty(self):
+        """Get the effective game difficulty (forced or user-selected)."""
+        forced_difficulty = self.force_game_difficulty.get()
+        if forced_difficulty is not None:
+            return forced_difficulty
+        return self.game_difficulty.get()
     
     def _get_graph_nodes_and_index_name(self, G):
         """Get nodes and index name based on graph structure."""

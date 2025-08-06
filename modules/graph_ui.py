@@ -63,7 +63,8 @@ def graph_ui_server(input, output, session):
             state_manager.consecutive_correct.get(),
             state_manager.total_predictions.get(),
             state_manager.correct_predictions.get(),
-            state_manager.last_prediction_correct.get()
+            state_manager.last_prediction_correct.get(),
+            state_manager.get_effective_game_difficulty()
         )
 
     @output
@@ -108,11 +109,23 @@ def graph_ui_server(input, output, session):
     @render.data_frame
     @reactive.event(
         state_manager.distances_df, state_manager.step_counter, 
-        input.start_node, input.target_node
+        input.start_node, input.target_node, state_manager.game_difficulty,
+        state_manager.force_game_difficulty, state_manager.nodes_visited, state_manager.current_node
     )
     def display_distances():
+        from modules.ui_components import get_filtered_distances_for_difficulty
+        
+        # Apply difficulty-based filtering to distances table
+        original_df = state_manager.distances_df.get()
+        filtered_df = get_filtered_distances_for_difficulty(
+            original_df,
+            state_manager.get_effective_game_difficulty(),
+            state_manager.nodes_visited.get(),
+            state_manager.current_node.get()
+        )
+        
         return render_distances_table(
-            state_manager.distances_df.get(),
+            filtered_df,
             input.start_node(),
             input.target_node()
         )
@@ -138,6 +151,27 @@ def graph_ui_server(input, output, session):
         """Show/hide game toggle based on settings."""
         from modules.ui_components import prediction_game_toggle_ui
         return prediction_game_toggle_ui()
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.force_game_difficulty, input.game_enabled)
+    def game_difficulty_selector():
+        """Show/hide difficulty selector based on settings and game state."""
+        from modules.ui_components import game_difficulty_selector_ui
+        
+        # Only show if game feature is enabled in settings
+        if not state_manager.game_enabled():
+            return ui.div()
+        
+        # Check if game should be active (forced or user enabled)
+        game_active = state_manager.force_game_mode() or \
+                     (input.game_enabled() if input.game_enabled() is not None else False)
+        
+        # Only show difficulty selector if game is actually active
+        if not game_active:
+            return ui.div()
+        
+        return game_difficulty_selector_ui()
 
     @output
     @render.ui
@@ -215,6 +249,15 @@ def graph_ui_server(input, output, session):
                 state_manager.reset_game_state()
     
     @reactive.Effect
+    @reactive.event(input.game_difficulty)
+    def update_difficulty():
+        """Update game difficulty when user changes selection."""
+        if (state_manager.game_enabled() and input.game_difficulty() and 
+            not state_manager.force_game_difficulty.get()):
+            # Only allow user to change difficulty if not forced by instructor
+            state_manager.update_game_difficulty(input.game_difficulty())
+    
+    @reactive.Effect
     @reactive.event(input.cytoscape_graph_node_clicked)
     def handle_prediction_click():
         """Handle node clicks for prediction game."""
@@ -260,7 +303,8 @@ def graph_ui_server(input, output, session):
     @reactive.event(
         state_manager.graph, input.start_node, input.target_node, 
         state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
-        state_manager.prediction_candidates, state_manager.visualization_mode
+        state_manager.prediction_candidates, state_manager.visualization_mode, state_manager.game_difficulty,
+        state_manager.force_game_difficulty
     )
     def cytoscape_graph():
         """Render the graph using Cytoscape.js."""
@@ -290,7 +334,8 @@ def graph_ui_server(input, output, session):
             nodes_visited=state_manager.nodes_visited.get(),
             current_edges=state_manager.current_edges.get(),
             distances=state_manager.distances_df.get(),
-            prediction_candidates=state_manager.prediction_candidates.get()
+            prediction_candidates=state_manager.prediction_candidates.get(),
+            game_difficulty=state_manager.get_effective_game_difficulty()
         )
         
         return {

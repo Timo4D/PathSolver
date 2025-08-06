@@ -17,7 +17,7 @@ def settings_ui_server(input, output, session):
     
     @output
     @render.ui
-    @reactive.event(state_manager.settings_unlocked)
+    @reactive.event(state_manager.settings_unlocked, state_manager.force_game_difficulty, state_manager.game_enabled, state_manager.force_game_mode)
     def settings_content():
         """Render settings content based on unlock status."""
         if not state_manager.settings_unlocked():
@@ -60,6 +60,27 @@ def settings_ui_server(input, output, session):
                             class_="text-muted small"
                         ),
                         id="force_game_mode_section",
+                        style="opacity: 1" if state_manager.game_enabled() else "opacity: 0.5"
+                    ),
+                    ui.hr(),
+                    ui.div(
+                        ui.input_selectize(
+                            "force_game_difficulty",
+                            "Force Game Difficulty",
+                            choices={
+                                "user_choice": "Allow User Choice",
+                                "easy": "🟢 Easy - Full hints and distances shown",
+                                "medium": "🟡 Medium - Some visual aids hidden",
+                                "hard": "🔴 Hard - Minimal visual information"
+                            },
+                            selected="user_choice" if state_manager.force_game_difficulty.get() is None else state_manager.force_game_difficulty.get()
+                        ),
+                        ui.p(
+                            "When set, users cannot change the difficulty level and must use the specified setting." +
+                            (" (Only applies when game feature is enabled)" if not state_manager.game_enabled() else ""),
+                            class_="text-muted small"
+                        ),
+                        id="force_difficulty_section",
                         style="opacity: 1" if state_manager.game_enabled() else "opacity: 0.5"
                     ),
                     class_="card p-3 mb-4"
@@ -115,11 +136,14 @@ def settings_ui_server(input, output, session):
     def current_settings():
         game_status = "Enabled" if state_manager.game_enabled() else "Disabled"
         force_game_status = "Yes" if state_manager.force_game_mode() else "No"
+        force_difficulty = state_manager.force_game_difficulty.get()
+        force_difficulty_status = force_difficulty.title() if force_difficulty else "User Choice"
         viz_mode = "Interactive (Cytoscape.js)" if state_manager.visualization_mode() == "cytoscape" else "Static (Matplotlib)"
         
         return ui.div(
             ui.p(f"Game Feature: {game_status}"),
             ui.p(f"Force Game Mode: {force_game_status}"),
+            ui.p(f"Force Game Difficulty: {force_difficulty_status}"),
             ui.p(f"Visualization Mode: {viz_mode}"),
             ui.p(f"Password Protection: {'Yes' if state_manager.config['settings']['password_protected'] else 'No'}")
         )
@@ -202,6 +226,28 @@ def settings_ui_server(input, output, session):
                     duration=2
                 )
     
+    # Force game difficulty handler
+    @reactive.Effect
+    @reactive.event(input.force_game_difficulty)
+    def handle_force_game_difficulty():
+        if state_manager.settings_unlocked():
+            difficulty = input.force_game_difficulty()
+            
+            # Allow processing of values
+            if difficulty is not None:
+                # Convert "user_choice" to None for "Allow User Choice"
+                difficulty_value = difficulty if difficulty != "user_choice" else None
+                current_difficulty = state_manager.force_game_difficulty.get()
+                
+                if difficulty_value != current_difficulty:  # Only update if actually changed
+                    state_manager.update_force_game_difficulty(difficulty_value)
+                    difficulty_name = difficulty_value.title() if difficulty_value else "User Choice"
+                    ui.notification_show(
+                        f"Force game difficulty set to {difficulty_name}.", 
+                        type="success",
+                        duration=2
+                    )
+    
     # Visualization mode handler
     @reactive.Effect
     def handle_visualization_mode():
@@ -224,4 +270,5 @@ def settings_ui_server(input, output, session):
         if state_manager.settings_unlocked():
             ui.update_switch("settings_game_enabled", value=state_manager.game_enabled())
             ui.update_switch("force_game_mode", value=state_manager.force_game_mode())
+            ui.update_selectize("force_game_difficulty", selected="user_choice" if state_manager.force_game_difficulty.get() is None else state_manager.force_game_difficulty.get())
             ui.update_radio_buttons("visualization_mode", selected=state_manager.visualization_mode())

@@ -37,6 +37,7 @@ def main_ui():
             ui.sidebar(
                 tutorial_modal(),
                 ui.output_ui("dynamic_game_toggle"),
+                ui.output_ui("game_difficulty_selector"),
                 graph_selection_ui(),
                 ui.output_ui("graph_generator_settings"),
                 ui.input_numeric(
@@ -90,6 +91,50 @@ def distances_ui():
     )
 
 
+def get_filtered_distances_for_difficulty(df, difficulty, nodes_visited, current_node):
+    """Filter distances table based on game difficulty."""
+    if difficulty == "easy":
+        # Easy: Show all distances
+        return df
+    elif difficulty == "medium":
+        # Medium: Show distances only for visited nodes and current node
+        if df.empty or "Cost" not in df.columns:
+            return df
+        
+        filtered_df = df.copy()
+        # Convert Cost column to object type to allow mixed types
+        filtered_df["Cost"] = filtered_df["Cost"].astype(object)
+        
+        # Get nodes that should NOT show distances (unvisited and not current)
+        for index, row in filtered_df.iterrows():
+            node_id = None
+            if "Node" in row:
+                try:
+                    node_id = int(row["Node"])
+                except (ValueError, TypeError):
+                    node_id = row["Node"]
+            else:
+                node_id = index
+            
+            # Hide distance if node is not visited and not current
+            if node_id not in nodes_visited and node_id != current_node:
+                filtered_df.at[index, "Cost"] = "?"
+        
+        return filtered_df
+    elif difficulty == "hard":
+        # Hard: Hide all distances
+        if df.empty or "Cost" not in df.columns:
+            return df
+        
+        filtered_df = df.copy()
+        # Convert Cost column to object type to allow mixed types
+        filtered_df["Cost"] = filtered_df["Cost"].astype(object)
+        filtered_df["Cost"] = "?"
+        return filtered_df
+    
+    return df
+
+
 def visited_nodes_ui():
     """Visited nodes display UI component."""
     return ui.card(
@@ -103,6 +148,57 @@ def algorithm_explanation_ui():
         ui.card_header("Explanation of the Algorithm"),
         ui.card_body(dijkstra_explanation),
     )
+
+
+def game_difficulty_selector_ui():
+    """Difficulty selector for prediction game mode."""
+    from modules.state_manager import state_manager
+    
+    # Only show if game feature is enabled in settings
+    if not state_manager.game_enabled():
+        return ui.div()
+    
+    # Check if difficulty is forced by instructor
+    forced_difficulty = state_manager.force_game_difficulty.get()
+    
+    if forced_difficulty:
+        # Show read-only forced difficulty
+        difficulty_labels = {
+            "easy": "🟢 Easy - Full hints and distances shown",
+            "medium": "🟡 Medium - Some visual aids hidden", 
+            "hard": "🔴 Hard - Minimal visual information"
+        }
+        
+        return ui.div(
+            ui.div(
+                ui.strong(f"🎯 Game Difficulty (Forced by Instructor)"),
+                style="margin-bottom: 5px;"
+            ),
+            ui.div(
+                difficulty_labels.get(forced_difficulty, forced_difficulty.title()),
+                style="padding: 8px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;"
+            ),
+            ui.p(
+                "The difficulty level has been set by your instructor and cannot be changed.",
+                style="font-size: 0.8em; color: #6c757d; margin: 5px 0 0 0;"
+            ),
+            style="margin-bottom: 10px;"
+        )
+    else:
+        # Show normal selector
+        return ui.div(
+            ui.input_selectize(
+                "game_difficulty",
+                "🎯 Game Difficulty",
+                choices={
+                    "easy": "🟢 Easy",
+                    "medium": "🟡 Medium", 
+                    "hard": "🔴 Hard"
+                },
+                selected="medium",
+            ),
+            style="margin-bottom: 10px;"
+        )
 
 
 def prediction_game_toggle_ui():
@@ -134,7 +230,7 @@ def prediction_game_toggle_ui():
 
 def create_prediction_game_ui(
     waiting_for_prediction, game_score, consecutive_correct, 
-    total_predictions, correct_predictions, last_prediction_correct
+    total_predictions, correct_predictions, last_prediction_correct, game_difficulty=None
 ):
     """Create prediction game UI when waiting for user prediction."""
     if not waiting_for_prediction:
@@ -187,7 +283,7 @@ def create_prediction_game_ui(
                 style="margin-bottom: 15px;"
             ),
             ui.div(
-                "💡 The algorithm always selects the unvisited node with the minimum distance.",
+                _get_difficulty_hint(game_difficulty),
                 style="background-color: #e7f3ff; padding: 10px; border-radius: 5px; font-style: italic;"
             )
         ),
@@ -314,3 +410,15 @@ def render_distances_table(df, start_node, target_node):
         except TypeError:
             df = pd.DataFrame({"Error": [ERROR_INVALID_DATA]})
             return render.DataTable(df, width="100%")
+
+
+def _get_difficulty_hint(difficulty):
+    """Get hint text based on game difficulty level."""
+    if difficulty == "easy":
+        return "💡 Easy Mode: The algorithm always selects the unvisited node with the minimum distance. Look at the distances table for guidance\!"
+    elif difficulty == "medium":
+        return "💡 Medium Mode: The algorithm selects the unvisited node with the lowest cost. Some visual aids are reduced."
+    elif difficulty == "hard":
+        return "💡 Hard Mode: Think carefully about which unvisited node has the shortest path from the start. Visual information is minimal\!"
+    else:
+        return "💡 The algorithm always selects the unvisited node with the minimum distance."

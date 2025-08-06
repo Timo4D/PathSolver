@@ -74,7 +74,7 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
     plt.axis('off')
 
 
-def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target_node=None, nodes_visited=None, current_edges=None, distances=None, prediction_candidates=None):
+def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target_node=None, nodes_visited=None, current_edges=None, distances=None, prediction_candidates=None, game_difficulty="medium"):
     """Convert NetworkX graph to Cytoscape format."""
     if not graph or len(graph.nodes) == 0:
         return {"elements": [], "style": [], "layout": {"name": "circle"}}
@@ -96,17 +96,30 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
     for node in graph.nodes(data=True):
         node_id, node_attrs = node
         
-        # Build compound label like matplotlib does
+        # Build compound label based on difficulty level
         label_parts = []
         
-        # Add distance above (like matplotlib y + 0.13)
-        if distances is not None and not distances.empty and "Cost" in distances.columns:
-            if node_id in distances["Cost"]:
-                dist_value = distances["Cost"][node_id]
-                if dist_value == float('inf'):
-                    label_parts.append("ꝏ")
-                else:
-                    label_parts.append(str(int(dist_value) if isinstance(dist_value, float) else dist_value))
+        # Show distances based on difficulty level
+        if game_difficulty == "easy":
+            # Easy: Show all distances
+            if distances is not None and not distances.empty and "Cost" in distances.columns:
+                if node_id in distances["Cost"]:
+                    dist_value = distances["Cost"][node_id]
+                    if dist_value == float('inf'):
+                        label_parts.append("ꝏ")
+                    else:
+                        label_parts.append(str(int(dist_value) if isinstance(dist_value, float) else dist_value))
+        elif game_difficulty == "medium":
+            # Medium: Show distances only for visited nodes and current node
+            if (distances is not None and not distances.empty and "Cost" in distances.columns and
+                (node_id in nodes_visited or node_id == current_node)):
+                if node_id in distances["Cost"]:
+                    dist_value = distances["Cost"][node_id]
+                    if dist_value == float('inf'):
+                        label_parts.append("ꝏ")
+                    else:
+                        label_parts.append(str(int(dist_value) if isinstance(dist_value, float) else dist_value))
+        # Hard: No distances shown at all (no else case needed)
         
         # Add main node ID (center)
         label_parts.append(str(node_id))
@@ -156,14 +169,25 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
     # Add edges
     for edge in graph.edges(data=True):
         source, target, data = edge
+        weight = data.get("weight", 1)
+        
+        # Control edge weight visibility based on difficulty
         edge_data = {
             "data": {
                 "id": f"{source}-{target}",
                 "source": str(source),
                 "target": str(target),
-                "weight": data.get("weight", 1)
+                "weight": weight
             }
         }
+        
+        # Show weight labels based on difficulty
+        if game_difficulty == "hard":
+            # Hard: Hide edge weights completely
+            edge_data["data"]["label"] = ""
+        else:
+            # Easy and Medium: Show edge weights
+            edge_data["data"]["label"] = str(weight)
         
         # Highlight current edges using the bidirectional set
         if (source, target) in current_edges_set:
