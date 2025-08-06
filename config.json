@@ -1,0 +1,8 @@
+{
+    "settings": {
+        "game_feature_enabled": true,
+        "visualization_mode": "cytoscape",
+        "password_protected": true,
+        "admin_password": "admin123"
+    }
+}

@@ -41,9 +41,14 @@ def graph_ui_server(input, output, session):
     @reactive.event(
         state_manager.waiting_for_prediction, state_manager.game_score,
         state_manager.consecutive_correct, state_manager.total_predictions,
-        state_manager.correct_predictions, state_manager.last_prediction_correct
+        state_manager.correct_predictions, state_manager.last_prediction_correct,
+        state_manager.game_enabled
     )
     def prediction_game_ui():
+        # Only show prediction game UI if game feature is enabled in settings
+        if not state_manager.game_enabled():
+            return ui.div()
+        
         return create_prediction_game_ui(
             state_manager.waiting_for_prediction.get(),
             state_manager.game_score.get(),
@@ -120,6 +125,31 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
+    @reactive.event(state_manager.game_enabled)
+    def dynamic_game_toggle():
+        """Show/hide game toggle based on settings."""
+        from modules.ui_components import prediction_game_toggle_ui
+        return prediction_game_toggle_ui()
+
+    @output
+    @render.ui
+    @reactive.event(state_manager.visualization_mode)
+    def layout_seed_control():
+        """Show layout seed input only when matplotlib visualization is selected."""
+        if state_manager.visualization_mode() == "matplotlib":
+            return ui.input_numeric(
+                "layout_seed",
+                "Layout Seed",
+                value=42,
+                min=0,
+                max=999,
+                step=1
+            )
+        else:
+            return ui.div()  # Return empty div when cytoscape is selected
+
+    @output
+    @render.ui
     def start_node_error_message():
         return render_error_tooltip(state_manager.start_node_error.get())
 
@@ -133,7 +163,36 @@ def graph_ui_server(input, output, session):
     def edge_list_error_message():
         return render_error_tooltip(state_manager.invalid_edge_list.get())
 
+    @output
+    @render.ui
+    @reactive.event(state_manager.visualization_mode)
+    def graph_display():
+        """Conditionally render either cytoscape or matplotlib graph."""
+        mode = state_manager.visualization_mode()
+        if mode == "cytoscape":
+            from modules.cytoscape.graph_component import output_cytoscape_graph
+            # Add a key to force recreation when switching modes
+            return ui.div(
+                output_cytoscape_graph("cytoscape_graph"),
+                key=f"cytoscape-{mode}"
+            )
+        else:
+            return ui.div(
+                ui.output_plot("matplotlib_graph", height="600px"),
+                key=f"matplotlib-{mode}"
+            )
 
+    @reactive.Effect
+    @reactive.event(state_manager.visualization_mode)
+    def handle_visualization_mode_change():
+        """Handle visualization mode changes to ensure proper graph rendering."""
+        mode = state_manager.visualization_mode()
+        # Force a graph update when switching modes to prevent stale state
+        graph = state_manager.graph.get()
+        if graph:
+            # Trigger a graph update by temporarily setting the same graph
+            state_manager.graph.set(graph)
+    
     @reactive.Effect
     @reactive.event(input.submit_solution)
     def check_user_solution():
@@ -142,15 +201,17 @@ def graph_ui_server(input, output, session):
     @reactive.Effect
     @reactive.event(input.game_enabled)
     def toggle_game_mode():
-        state_manager.game_enabled.set(input.game_enabled())
-        if input.game_enabled():
-            state_manager.reset_game_state()
+        # Only allow toggle if game feature is enabled in settings
+        if state_manager.game_enabled():
+            if input.game_enabled():
+                state_manager.reset_game_state()
     
     @reactive.Effect
     @reactive.event(input.cytoscape_graph_node_clicked)
     def handle_prediction_click():
         """Handle node clicks for prediction game."""
-        if not state_manager.waiting_for_prediction.get():
+        # Only handle predictions if game feature is enabled and waiting for prediction
+        if not state_manager.game_enabled() or not state_manager.waiting_for_prediction.get():
             return
         
         data = input.cytoscape_graph_node_clicked()
@@ -191,11 +252,28 @@ def graph_ui_server(input, output, session):
     @reactive.event(
         state_manager.graph, input.start_node, input.target_node, 
         state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
-        state_manager.prediction_candidates
+        state_manager.prediction_candidates, state_manager.visualization_mode
     )
     def cytoscape_graph():
         """Render the graph using Cytoscape.js."""
+        # Only render if visualization mode is cytoscape
+        if state_manager.visualization_mode() != "cytoscape":
+            # Return empty structure instead of None to prevent payload issues
+            return {
+                "elements": [],
+                "style": get_cytoscape_styles(),
+                "layout": get_cytoscape_layout()
+            }
+            
         graph = state_manager.graph.get()
+        if not graph:
+            # Return empty structure if no graph
+            return {
+                "elements": [],
+                "style": get_cytoscape_styles(),
+                "layout": get_cytoscape_layout()
+            }
+            
         elements = convert_graph_to_cytoscape(
             graph,
             current_node=state_manager.current_node.get(),
@@ -212,6 +290,55 @@ def graph_ui_server(input, output, session):
             "style": get_cytoscape_styles(),
             "layout": get_cytoscape_layout()
         }
+
+    @output
+    @render.plot
+    @reactive.event(
+        state_manager.graph, input.start_node, input.target_node, 
+        state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
+        state_manager.visualization_mode, input.layout_seed
+    )
+    def matplotlib_graph():
+        """Render the graph using Matplotlib."""
+        # Only render if visualization mode is matplotlib
+        if state_manager.visualization_mode() != "matplotlib":
+            return None
+            
+        graph = state_manager.graph.get()
+        if not graph:
+            return None
+            
+        start_node = None
+        target_node = None
+        
+        # Parse start and target nodes
+        if input.start_node():
+            try:
+                start_node = int(input.start_node())
+            except (ValueError, TypeError):
+                start_node = input.start_node()
+        
+        if input.target_node():
+            try:
+                target_node = int(input.target_node())
+            except (ValueError, TypeError):
+                target_node = input.target_node()
+        
+        # Get layout seed from input or use default
+        seed = input.layout_seed() if input.layout_seed() is not None else 42
+        
+        # Create the plot
+        return plot_graph(
+            graph,
+            start=start_node,
+            target=target_node,
+            seed=seed,
+            distances=state_manager.distances_df.get(),
+            current_node=state_manager.current_node.get(),
+            current_edges=state_manager.current_edges.get(),
+            dark_mode=False,
+            final_step=False
+        )
 
     @reactive.Effect
     @reactive.event(input.cytoscape_graph_set_start_node)

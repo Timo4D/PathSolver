@@ -36,7 +36,7 @@ def main_ui():
         ui.layout_sidebar(
             ui.sidebar(
                 tutorial_modal(),
-                prediction_game_toggle_ui(),
+                ui.output_ui("dynamic_game_toggle"),
                 graph_selection_ui(),
                 ui.output_ui("graph_generator_settings"),
                 ui.input_numeric(
@@ -51,8 +51,9 @@ def main_ui():
                     value=DEFAULT_TARGET_NODE,
                     min=0,
                 ),
+                ui.output_ui("layout_seed_control"),
             ),
-            output_cytoscape_graph("cytoscape_graph"),
+            ui.output_ui("graph_display"),
             ui.output_ui("progress_bar"),
             ui.output_ui("prediction_game_ui"),
             ui.output_ui("explain"),
@@ -105,7 +106,12 @@ def algorithm_explanation_ui():
 
 
 def prediction_game_toggle_ui():
-    """Toggle for enabling prediction game mode."""
+    """Toggle for enabling prediction game mode - only shown if enabled in settings."""
+    from modules.state_manager import state_manager
+    
+    if not state_manager.game_enabled():
+        return ui.div()  # Return empty div if game is disabled in settings
+    
     return ui.input_switch(
         "game_enabled",
         "🎮 Prediction Game Mode",

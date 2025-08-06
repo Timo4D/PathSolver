@@ -3,6 +3,7 @@ from shiny import App, ui
 from modules.dijkstra_info import dijkstra_info
 from modules.graph_ui import graph_ui, graph_ui_server
 from modules.project_information import project_information
+from modules.settings_ui import settings_ui, settings_ui_server
 
 example_page = ui.page_fluid(
     ui.panel_title("Dijkstra Shiny!"),
@@ -18,12 +19,14 @@ app_ui = ui.page_navbar(
     ui.nav_panel("Start", graph_ui()),
     ui.nav_panel("About the Project", project_information),
     ui.nav_panel("More about the Dijkstra-Algorithm", dijkstra_info),
+    ui.nav_panel("Settings", settings_ui()),
     title="PathSolver",
 )
 
 
 def server(input, output, session):
     graph_ui_server(input, output, session)
+    settings_ui_server(input, output, session)
 
 
 app = App(app_ui, server)

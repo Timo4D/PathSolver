@@ -1,5 +1,7 @@
 """State management for PathSolver application."""
 
+import json
+import os
 import pandas as pd
 import networkx as nx
 from shiny import reactive
@@ -12,6 +14,9 @@ class StateManager:
     """Manages all reactive state for the PathSolver application."""
     
     def __init__(self):
+        # Load configuration
+        self.config = self._load_config()
+        
         # Graph and algorithm state
         self.distances_df = reactive.Value(pd.DataFrame())
         self.graph = reactive.Value(nx.Graph())
@@ -37,7 +42,7 @@ class StateManager:
         self.state_history = reactive.Value([])
         
         # Prediction game state
-        self.game_enabled = reactive.Value(False)
+        self.game_enabled = reactive.Value(self.config["settings"]["game_feature_enabled"])
         self.game_score = reactive.Value(0)
         self.consecutive_correct = reactive.Value(0)
         self.waiting_for_prediction = reactive.Value(False)
@@ -45,6 +50,11 @@ class StateManager:
         self.last_prediction_correct = reactive.Value(None)
         self.total_predictions = reactive.Value(0)
         self.correct_predictions = reactive.Value(0)
+        
+        # Settings state
+        self.visualization_mode = reactive.Value(self.config["settings"]["visualization_mode"])
+        self.settings_unlocked = reactive.Value(not self.config["settings"]["password_protected"])
+        self.admin_password = self.config["settings"]["admin_password"]
     
     def save_state(self):
         """Save current state for undo functionality."""
@@ -129,6 +139,46 @@ class StateManager:
         self.waiting_for_prediction.set(False)
         
         return is_correct
+    
+    def _load_config(self):
+        """Load configuration from config.json."""
+        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
+        try:
+            with open(config_path, 'r') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            # Return default config if file doesn't exist or is invalid
+            return {
+                "settings": {
+                    "game_feature_enabled": True,
+                    "visualization_mode": "cytoscape",
+                    "password_protected": False,
+                    "admin_password": "admin123"
+                }
+            }
+    
+    def authenticate_settings(self, password):
+        """Authenticate password for settings access."""
+        if password == self.admin_password:
+            self.settings_unlocked.set(True)
+            return True
+        return False
+    
+    def lock_settings(self):
+        """Lock settings access."""
+        if self.config["settings"]["password_protected"]:
+            self.settings_unlocked.set(False)
+    
+    def update_game_setting(self, enabled):
+        """Update game feature setting."""
+        self.game_enabled.set(enabled)
+        if not enabled:
+            self.reset_game_state()
+    
+    def update_visualization_mode(self, mode):
+        """Update visualization mode setting."""
+        if mode in ["cytoscape", "matplotlib"]:
+            self.visualization_mode.set(mode)
     
     def _get_graph_nodes_and_index_name(self, G):
         """Get nodes and index name based on graph structure."""
