@@ -160,11 +160,22 @@ def create_prediction_game_ui(
         ui.card_header(
             ui.div(
                 "🎯 Prediction Challenge",
-                style="display: inline-block; margin-right: 20px;"
+                style="display: inline-block; margin-right: 20px; font-size: 1.1em; font-weight: bold;"
             ),
             ui.div(
-                f"Score: {game_score} | Streak: {consecutive_correct} | Accuracy: {accuracy}%",
-                style="display: inline-block; font-size: 0.9em;"
+                ui.span(
+                    f"🏆 {game_score}",
+                    style="display: inline-block; margin-right: 15px; font-size: 1.3em; font-weight: bold; color: #28a745; background-color: #d4edda; padding: 4px 8px; border-radius: 6px; border: 2px solid #c3e6cb;"
+                ),
+                ui.span(
+                    f"🔥 {consecutive_correct}",
+                    style="display: inline-block; margin-right: 15px; font-size: 1.1em; font-weight: bold; color: #fd7e14;"
+                ),
+                ui.span(
+                    f"📊 {accuracy}%",
+                    style="display: inline-block; font-size: 1.1em; font-weight: bold; color: #007bff; background-color: #cce5ff; padding: 4px 8px; border-radius: 6px; border: 2px solid #99d6ff;"
+                ),
+                style="display: inline-block;"
             ),
             style="display: flex; justify-content: space-between; align-items: center;"
         ),
