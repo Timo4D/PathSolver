@@ -53,6 +53,7 @@ class StateManager:
         
         # Settings state
         self.visualization_mode = reactive.Value(self.config["settings"]["visualization_mode"])
+        self.force_game_mode = reactive.Value(self.config["settings"]["force_game_mode"])
         self.settings_unlocked = reactive.Value(not self.config["settings"]["password_protected"])
         self.admin_password = self.config["settings"]["admin_password"]
     
@@ -151,6 +152,7 @@ class StateManager:
             return {
                 "settings": {
                     "game_feature_enabled": True,
+                    "force_game_mode": False,
                     "visualization_mode": "cytoscape",
                     "password_protected": False,
                     "admin_password": "admin123"
@@ -179,6 +181,10 @@ class StateManager:
         """Update visualization mode setting."""
         if mode in ["cytoscape", "matplotlib"]:
             self.visualization_mode.set(mode)
+    
+    def update_force_game_mode(self, enabled):
+        """Update force game mode setting."""
+        self.force_game_mode.set(enabled)
     
     def _get_graph_nodes_and_index_name(self, G):
         """Get nodes and index name based on graph structure."""

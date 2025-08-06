@@ -47,6 +47,21 @@ def settings_ui_server(input, output, session):
                         "When enabled, users can predict which node will be visited next during algorithm execution.",
                         class_="text-muted small"
                     ),
+                    ui.hr(),
+                    ui.div(
+                        ui.input_switch(
+                            "force_game_mode",
+                            "Force Game Mode Always On",
+                            value=state_manager.force_game_mode() if state_manager.game_enabled() else False
+                        ),
+                        ui.p(
+                            "When enabled, the prediction game will always be active and users cannot turn it off." + 
+                            (" (Requires game feature to be enabled)" if not state_manager.game_enabled() else ""),
+                            class_="text-muted small"
+                        ),
+                        id="force_game_mode_section",
+                        style="opacity: 1" if state_manager.game_enabled() else "opacity: 0.5"
+                    ),
                     class_="card p-3 mb-4"
                 ),
                 
@@ -99,10 +114,12 @@ def settings_ui_server(input, output, session):
     @render.ui
     def current_settings():
         game_status = "Enabled" if state_manager.game_enabled() else "Disabled"
+        force_game_status = "Yes" if state_manager.force_game_mode() else "No"
         viz_mode = "Interactive (Cytoscape.js)" if state_manager.visualization_mode() == "cytoscape" else "Static (Matplotlib)"
         
         return ui.div(
             ui.p(f"Game Feature: {game_status}"),
+            ui.p(f"Force Game Mode: {force_game_status}"),
             ui.p(f"Visualization Mode: {viz_mode}"),
             ui.p(f"Password Protection: {'Yes' if state_manager.config['settings']['password_protected'] else 'No'}")
         )
@@ -145,10 +162,42 @@ def settings_ui_server(input, output, session):
         if state_manager.settings_unlocked():
             enabled = input.settings_game_enabled()
             if enabled is not None:
+                # If disabling game feature, also disable force mode
+                if not enabled and state_manager.force_game_mode():
+                    state_manager.update_force_game_mode(False)
+                    ui.update_switch("force_game_mode", value=False)
+                
                 state_manager.update_game_setting(enabled)
                 status = "enabled" if enabled else "disabled"
                 ui.notification_show(
                     f"Game feature {status}.", 
+                    type="success",
+                    duration=2
+                )
+                
+                # Update the force game mode toggle visibility/state
+                ui.update_switch("force_game_mode", value=state_manager.force_game_mode() if enabled else False)
+    
+    # Force game mode handler
+    @reactive.Effect
+    def handle_force_game_mode():
+        if state_manager.settings_unlocked():
+            enabled = input.force_game_mode()
+            if enabled is not None:
+                # Only allow force mode if main game feature is enabled
+                if enabled and not state_manager.game_enabled():
+                    ui.update_switch("force_game_mode", value=False)
+                    ui.notification_show(
+                        "Cannot force game mode when game feature is disabled.", 
+                        type="warning",
+                        duration=3
+                    )
+                    return
+                
+                state_manager.update_force_game_mode(enabled)
+                status = "enabled" if enabled else "disabled"
+                ui.notification_show(
+                    f"Force game mode {status}.", 
                     type="success",
                     duration=2
                 )
@@ -174,4 +223,5 @@ def settings_ui_server(input, output, session):
     def initialize_settings():
         if state_manager.settings_unlocked():
             ui.update_switch("settings_game_enabled", value=state_manager.game_enabled())
+            ui.update_switch("force_game_mode", value=state_manager.force_game_mode())
             ui.update_radio_buttons("visualization_mode", selected=state_manager.visualization_mode())

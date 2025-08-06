@@ -1,8 +1,9 @@
 {
     "settings": {
         "game_feature_enabled": true,
+        "force_game_mode": false,
         "visualization_mode": "cytoscape",
-        "password_protected": true,
+        "password_protected": false,
         "admin_password": "admin123"
     }
 }

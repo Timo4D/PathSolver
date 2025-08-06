@@ -112,6 +112,19 @@ def prediction_game_toggle_ui():
     if not state_manager.game_enabled():
         return ui.div()  # Return empty div if game is disabled in settings
     
+    # If force game mode is enabled, show a read-only toggle that's always on
+    if state_manager.force_game_mode():
+        return ui.div(
+            ui.div(
+                ui.strong("🎮 Prediction Game Mode (Forced On)"),
+                style="margin-bottom: 5px;"
+            ),
+            ui.p(
+                "Game mode is forced on by administrator settings.",
+                style="font-size: 0.8em; color: #6c757d; margin: 0;"
+            )
+        )
+    
     return ui.input_switch(
         "game_enabled",
         "🎮 Prediction Game Mode",

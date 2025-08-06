@@ -42,11 +42,19 @@ def graph_ui_server(input, output, session):
         state_manager.waiting_for_prediction, state_manager.game_score,
         state_manager.consecutive_correct, state_manager.total_predictions,
         state_manager.correct_predictions, state_manager.last_prediction_correct,
-        state_manager.game_enabled
+        state_manager.game_enabled, state_manager.force_game_mode
     )
     def prediction_game_ui():
         # Only show prediction game UI if game feature is enabled in settings
         if not state_manager.game_enabled():
+            return ui.div()
+        
+        # Check if game should be active (forced or user enabled)
+        game_active = state_manager.force_game_mode() or \
+                     (input.game_enabled() if input.game_enabled() is not None else False)
+        
+        # Only show UI if game is actually active
+        if not game_active:
             return ui.div()
         
         return create_prediction_game_ui(
@@ -125,7 +133,7 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
-    @reactive.event(state_manager.game_enabled)
+    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode)
     def dynamic_game_toggle():
         """Show/hide game toggle based on settings."""
         from modules.ui_components import prediction_game_toggle_ui

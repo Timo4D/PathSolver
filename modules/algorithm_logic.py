@@ -246,8 +246,11 @@ class DijkstraStepHandler:
         else:
             min_cost_node = min_cost_lookup_value
         
-        # Check if prediction game is enabled and we should wait for user prediction
-        if self.state.game_enabled.get() and not self.state.waiting_for_prediction.get():
+        # Check if prediction game is enabled (either forced or user enabled) and we should wait for user prediction
+        game_active = (self.state.game_enabled.get() and self.state.force_game_mode.get()) or \
+                     (self.state.game_enabled.get() and input.game_enabled() if input.game_enabled() is not None else False)
+        
+        if game_active and not self.state.waiting_for_prediction.get():
             # Get list of candidate nodes (unvisited nodes with finite costs)
             finite_cost_nodes = unvisited_nodes[unvisited_nodes["Cost"] != float('inf')]
             
