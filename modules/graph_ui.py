@@ -6,6 +6,8 @@ from shiny import ui, render, reactive
 from shiny.types import FileInfo
 
 from constants import DEFAULT_EDGE_LIST_PATH, STEP_FINISH
+from constants import DEFAULT_START_NODE, DEFAULT_TARGET_NODE
+from localization import _
 from modules.state_manager import state_manager
 from modules.ui_components import (
     main_ui, GraphType, create_progress_bar, create_explanation_ui,
@@ -34,7 +36,15 @@ def graph_ui_server(input, output, session):
     @render.ui
     def render_solution_quiz_ui():
         if state_manager.step_counter.get() == STEP_FINISH:
-            return render_solution_quiz()
+            # Check if solution quiz should be shown
+            # Quiz is shown if: admin enabled it AND (admin forced it OR user enabled it)
+            quiz_should_show = state_manager.solution_quiz_enabled.get() and (
+                state_manager.force_solution_quiz.get() or  # Admin forced it on
+                (input.solution_quiz_enabled() if input.solution_quiz_enabled() is not None else True)  # User choice (default True)
+            )
+            
+            if quiz_should_show:
+                return render_solution_quiz()
 
     @output
     @render.ui
@@ -42,7 +52,7 @@ def graph_ui_server(input, output, session):
         state_manager.waiting_for_prediction, state_manager.game_score,
         state_manager.consecutive_correct, state_manager.total_predictions,
         state_manager.correct_predictions, state_manager.last_prediction_correct,
-        state_manager.game_enabled, state_manager.force_game_mode
+        state_manager.game_enabled, state_manager.force_game_mode, state_manager.current_language
     )
     def prediction_game_ui():
         # Only show prediction game UI if game feature is enabled in settings
@@ -69,6 +79,7 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
+    @reactive.event(state_manager.step_counter, state_manager.current_language)
     def progress_bar():
         return create_progress_bar(state_manager.step_counter.get())
 
@@ -88,8 +99,64 @@ def graph_ui_server(input, output, session):
     def visited_nodes():
         nodes = ", ".join(
             [str(int(node)) for node in state_manager.nodes_visited.get()]
-        ) if state_manager.nodes_visited.get() else "No nodes visited yet"
+        ) if state_manager.nodes_visited.get() else _("no_nodes_visited")
         return TagList(nodes)
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def algorithm_explanation():
+        """Render algorithm explanation that updates when language changes."""
+        from modules.ui_components import algorithm_explanation_ui
+        return algorithm_explanation_ui()
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_graph_selection():
+        """Dynamic graph selection UI that updates with language."""
+        from modules.ui_components import graph_selection_ui
+        return graph_selection_ui()
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_start_node():
+        """Dynamic start node input that updates with language."""
+        return ui.input_numeric(
+            "start_node",
+            ui.span(_("start_node"), ui.output_ui("start_node_error_message")),
+            value=DEFAULT_START_NODE,
+            min=0,
+        )
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_target_node():
+        """Dynamic target node input that updates with language."""
+        return ui.input_numeric(
+            "target_node",
+            ui.span(_("target_node"), ui.output_ui("target_node_error_message")),
+            value=DEFAULT_TARGET_NODE,
+            min=0,
+        )
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_distances():
+        """Dynamic distances table that updates with language."""
+        from modules.ui_components import distances_ui
+        return distances_ui()
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_visited_nodes():
+        """Dynamic visited nodes card that updates with language."""
+        from modules.ui_components import visited_nodes_ui
+        return visited_nodes_ui()
 
     @reactive.Effect
     @reactive.event(input.prev_step)
@@ -146,15 +213,23 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
-    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode)
+    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.current_language)
     def dynamic_game_toggle():
         """Show/hide game toggle based on settings."""
         from modules.ui_components import prediction_game_toggle_ui
         return prediction_game_toggle_ui()
+
+    @output
+    @render.ui
+    @reactive.event(state_manager.solution_quiz_enabled, state_manager.force_solution_quiz, state_manager.current_language)
+    def dynamic_solution_quiz_toggle():
+        """Show/hide solution quiz toggle based on settings."""
+        from modules.ui_components import solution_quiz_toggle_ui
+        return solution_quiz_toggle_ui()
     
     @output
     @render.ui
-    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.force_game_difficulty, input.game_enabled)
+    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.force_game_difficulty, input.game_enabled, state_manager.current_language)
     def game_difficulty_selector():
         """Show/hide difficulty selector based on settings and game state."""
         from modules.ui_components import game_difficulty_selector_ui
@@ -175,13 +250,13 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
-    @reactive.event(state_manager.visualization_mode)
+    @reactive.event(state_manager.visualization_mode, state_manager.current_language)
     def layout_seed_control():
         """Show layout seed input only when matplotlib visualization is selected."""
         if state_manager.visualization_mode() == "matplotlib":
             return ui.input_numeric(
                 "layout_seed",
-                "Layout Seed",
+                _("layout_seed"),
                 value=42,
                 min=0,
                 max=999,
@@ -247,6 +322,13 @@ def graph_ui_server(input, output, session):
         if state_manager.game_enabled():
             if input.game_enabled():
                 state_manager.reset_game_state()
+    
+    @reactive.Effect
+    @reactive.event(input.solution_quiz_enabled)
+    def toggle_solution_quiz():
+        # This handler doesn't need to do anything special,
+        # the quiz logic in render_solution_quiz_ui will handle the user's choice
+        pass
     
     @reactive.Effect
     @reactive.event(input.game_difficulty)
@@ -433,7 +515,7 @@ def graph_ui_server(input, output, session):
                 # Check if deleting this node would disconnect the graph
                 if len(graph.nodes()) <= 2:
                     state_manager.step_explanation.set(
-                        TagList("Cannot delete node: Graph must have at least 2 nodes")
+                        TagList(_("cannot_delete_min_nodes"))
                     )
                     return
                 
@@ -474,7 +556,7 @@ def graph_ui_server(input, output, session):
                 # Check if removing this edge would disconnect the graph
                 if not nx.is_connected(graph_copy):
                     state_manager.step_explanation.set(
-                        TagList(f"Cannot delete edge {source_id}-{target_id}: This would disconnect the graph")
+                        TagList(_("cannot_delete_disconnect").format(source=source_id, target=target_id))
                     )
                     return
                 
@@ -521,7 +603,7 @@ def graph_ui_server(input, output, session):
                 state_manager.reset_algorithm_state()
                 
                 state_manager.step_explanation.set(
-                    TagList(f"Added new node {new_node_id} to the graph at position ({data['x']:.0f}, {data['y']:.0f})")
+                    TagList(_("added_new_node").format(node_id=new_node_id, x=data['x'], y=data['y']))
                 )
             else:
                 print("Debug: No graph found in state manager")  # Debug output
@@ -536,7 +618,7 @@ def graph_ui_server(input, output, session):
         if data and "source" in data:
             source_node = data["source"]
             state_manager.step_explanation.set(
-                TagList(f"Edge creation mode: Selected source node {source_node}. Right-click on another node to connect.")
+                TagList(_("edge_creation_start").format(source=source_node))
             )
 
     @reactive.Effect
@@ -544,7 +626,7 @@ def graph_ui_server(input, output, session):
     def handle_edge_creation_ended():
         """Handle end of edge creation mode."""
         state_manager.step_explanation.set(
-            TagList("Edge creation mode ended.")
+            TagList(_("edge_creation_ended"))
         )
 
     @reactive.Effect
@@ -561,7 +643,7 @@ def graph_ui_server(input, output, session):
                 # Check if edge already exists
                 if graph.has_edge(source_id, target_id):
                     state_manager.step_explanation.set(
-                        TagList(f"Edge between {source_id} and {target_id} already exists")
+                        TagList(_("edge_already_exists").format(source=source_id, target=target_id))
                     )
                     return
                 
@@ -577,11 +659,11 @@ def graph_ui_server(input, output, session):
                 state_manager.reset_algorithm_state()
                 
                 state_manager.step_explanation.set(
-                    TagList(f"Created edge between nodes {source_id} and {target_id} with weight 1")
+                    TagList(_("created_edge").format(source=source_id, target=target_id))
                 )
             else:
                 state_manager.step_explanation.set(
-                    TagList(f"Cannot create edge: Invalid nodes {source_id} or {target_id}")
+                    TagList(_("cannot_create_invalid_nodes").format(source=source_id, target=target_id))
                 )
 
     @reactive.Effect
@@ -607,11 +689,11 @@ def graph_ui_server(input, output, session):
                 state_manager.reset_algorithm_state()
                 
                 state_manager.step_explanation.set(
-                    TagList(f"Updated weight of edge {source_id}-{target_id} to {new_weight}")
+                    TagList(_("updated_edge_weight").format(source=source_id, target=target_id, weight=new_weight))
                 )
             else:
                 state_manager.step_explanation.set(
-                    TagList(f"Cannot update weight: Edge {source_id}-{target_id} does not exist")
+                    TagList(_("cannot_update_nonexistent").format(source=source_id, target=target_id))
                 )
 
     # Initialize tutorial modal server and get tutorial object
@@ -671,7 +753,7 @@ def _update_graph_based_on_selection(input):
     if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
         if input.k_slider() > input.n_slider():
             state_manager.step_explanation.set(
-                TagList("Please select make sure that k is not smaller than n")
+                TagList(_("select_k_not_smaller_n"))
             )
         else:
             graph = generate_random_graph(

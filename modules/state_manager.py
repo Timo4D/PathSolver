@@ -7,7 +7,8 @@ import networkx as nx
 from shiny import reactive
 from htmltools import TagList
 
-from constants import INITIAL_EXPLANATION
+from constants import get_initial_explanation
+from localization import I18n, set_language, get_current_language
 
 
 class StateManager:
@@ -30,8 +31,8 @@ class StateManager:
         self.distance = reactive.Value(0)
         self.nodes_visited = reactive.Value([])
         
-        # UI state
-        self.step_explanation = reactive.Value(TagList(INITIAL_EXPLANATION))
+        # UI state - use function call to get localized text
+        self.step_explanation = reactive.Value(TagList(get_initial_explanation()))
         
         # Error state
         self.invalid_edge_list = reactive.Value(False)
@@ -57,8 +58,17 @@ class StateManager:
         self.force_game_mode = reactive.Value(self.config["settings"]["force_game_mode"])
         self.force_game_difficulty = reactive.Value(self.config["settings"]["force_game_difficulty"])
         self.graph_font_size = reactive.Value(self.config["settings"].get("graph_font_size", 16))  # Default 16px
+        self.solution_quiz_enabled = reactive.Value(self.config["settings"].get("solution_quiz_enabled", True))
+        self.force_solution_quiz = reactive.Value(self.config["settings"].get("force_solution_quiz", False))
         self.settings_unlocked = reactive.Value(not self.config["settings"]["password_protected"])
         self.admin_password = self.config["settings"]["admin_password"]
+        
+        # Language state
+        default_language = self.config["settings"].get("language", "en")
+        self.current_language = reactive.Value(default_language)
+        # Initialize i18n with the configured language immediately (non-reactively)
+        set_language(default_language)
+        self._language_initialized = True
     
     def save_state(self):
         """Save current state for undo functionality."""
@@ -102,7 +112,7 @@ class StateManager:
             self.current_edges.set([])
             self.current_node.set(None)
             self.solution.set(None)
-            self.step_explanation.set(TagList(INITIAL_EXPLANATION))
+            self.step_explanation.set(TagList(get_initial_explanation()))
             
             # Reset error states when algorithm is reset
             self.start_node_error.set(False)
@@ -160,7 +170,10 @@ class StateManager:
                     "visualization_mode": "cytoscape",
                     "graph_font_size": 16,
                     "password_protected": False,
-                    "admin_password": "admin123"
+                    "admin_password": "admin123",
+                    "language": "en",
+                    "solution_quiz_enabled": True,
+                    "force_solution_quiz": False
                 }
             }
     
@@ -205,6 +218,71 @@ class StateManager:
         """Update graph font size setting."""
         if isinstance(size, (int, float)) and 8 <= size <= 36:
             self.graph_font_size.set(size)
+    
+    def update_solution_quiz_setting(self, enabled):
+        """Update solution quiz feature setting."""
+        self.solution_quiz_enabled.set(enabled)
+        if not enabled:
+            # If disabling solution quiz, also disable force mode
+            self.force_solution_quiz.set(False)
+    
+    def update_force_solution_quiz(self, enabled):
+        """Update force solution quiz setting."""
+        self.force_solution_quiz.set(enabled)
+    
+    def _ensure_language_initialized(self):
+        """Ensure language is initialized in reactive context."""
+        if not self._language_initialized:
+            try:
+                current_lang = self.current_language.get() if hasattr(self, 'current_language') else "en"
+                set_language(current_lang)
+                self._language_initialized = True
+            except RuntimeError:
+                # No reactive context available yet, set to default
+                set_language("en")
+                self._language_initialized = True
+
+    def update_language(self, language_code):
+        """Update the application language."""
+        from localization import get_available_languages
+        available_languages = get_available_languages()
+        
+        if language_code in available_languages:
+            self.current_language.set(language_code)
+            set_language(language_code)
+            self._language_initialized = True
+            
+            # Update all static content that needs to be refreshed
+            self._refresh_static_content()
+            
+            return True
+        return False
+    
+    def _refresh_static_content(self):
+        """Refresh static content that doesn't automatically update on language change."""
+        try:
+            # Update constants
+            from constants import get_step_headings, get_initial_explanation
+            import constants
+            constants.STEP_HEADINGS = get_step_headings()
+            constants.INITIAL_EXPLANATION = get_initial_explanation()
+            
+            # Update static UI content
+            from modules.dijkstra_explanation import update_dijkstra_explanation
+            from modules.project_information import update_project_information
+            from modules.dijkstra_info import update_dijkstra_info
+            
+            update_dijkstra_explanation()
+            update_project_information()
+            update_dijkstra_info()
+            
+            # Update step explanation if it's currently showing the default text
+            current_explanation = str(self.step_explanation.get())
+            if "Here will be" in current_explanation or "Hier werden" in current_explanation:
+                self.step_explanation.set(TagList(get_initial_explanation()))
+            
+        except Exception as e:
+            print(f"Warning: Could not refresh static content: {e}")
     
     def get_effective_game_difficulty(self):
         """Get the effective game difficulty (forced or user-selected)."""

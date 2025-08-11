@@ -1,8 +1,9 @@
 from shiny import reactive, ui, render
+from localization import _
 
 
 def tutorial_modal():
-    return ui.input_action_button("tutorial", "Tutorial"),
+    return ui.input_action_button("tutorial", _("tutorial_button")),
 
 
 class InteractiveTutorial:
@@ -14,70 +15,74 @@ class InteractiveTutorial:
         self.show_skip_option = reactive.value(True)
         
         # Tutorial steps with their content and target elements
-        self.steps = [
+        self.steps = self.get_localized_steps()
+    
+    def get_localized_steps(self):
+        """Get tutorial steps with localized text."""
+        return [
             {
-                "title": "Welcome to PathSolver!",
-                "content": "This interactive tutorial will guide you through all the features of the Dijkstra algorithm visualizer. You can navigate using the buttons below or skip this tutorial entirely.",
+                "title": _("tutorial_welcome_title"),
+                "content": _("tutorial_welcome_content"),
                 "highlight_element": None,
                 "action": None
             },
             {
-                "title": "Graph Selection",
-                "content": "Start by choosing a graph type. You can select from Germany Example (simple city network), Random Graph (customizable network), Import from Edgelist (define your own edges), or Upload a CSV file.",
+                "title": _("tutorial_graph_selection_title"),
+                "content": _("tutorial_graph_selection_content"),
                 "highlight_element": "selectize_graph",
-                "action": "Look at the dropdown above to see your options."
+                "action": _("tutorial_graph_settings_action")
             },
             {
-                "title": "Prediction Game Mode",
-                "content": "Toggle this switch to enable Prediction Game Mode! When active, you'll be challenged to predict which node Dijkstra will visit next, earning points for correct predictions.",
+                "title": _("tutorial_prediction_game_title"),
+                "content": _("tutorial_prediction_game_content"),
                 "highlight_element": "game_enabled",
-                "action": "Try toggling this switch on and off."
+                "action": _("tutorial_prediction_game_action")
             },
             {
-                "title": "Graph Settings",
-                "content": "Depending on your graph selection, different settings will appear here. For Random Graph, you can adjust the number of nodes, neighbors, and rewiring probability. For edge lists, you can define custom connections.",
+                "title": _("tutorial_graph_settings_title"),
+                "content": _("tutorial_graph_settings_content"),
                 "highlight_element": "graph_generator_settings",
-                "action": "These settings change based on your graph selection above."
+                "action": _("tutorial_graph_settings_action")
             },
             {
-                "title": "Start Node",
-                "content": "Choose which node the algorithm should start from. This will be highlighted in green on the graph visualization.",
+                "title": _("tutorial_start_node_title"),
+                "content": _("tutorial_start_node_content"),
                 "highlight_element": "start_node",
-                "action": "Try changing this number to select different starting points."
+                "action": _("tutorial_start_node_action")
             },
             {
-                "title": "Target Node", 
-                "content": "Choose the destination node that Dijkstra should find the shortest path to. This will be highlighted in red on the graph.",
+                "title": _("tutorial_target_node_title"), 
+                "content": _("tutorial_target_node_content"),
                 "highlight_element": "target_node",
-                "action": "Set this to a different node than your start node."
+                "action": _("tutorial_target_node_action")
             },
             {
-                "title": "Algorithm Controls",
-                "content": "Use these buttons to step through the Dijkstra algorithm. 'Next Step' advances the algorithm one step forward, while 'Previous Step' lets you go back to review earlier steps.",
+                "title": _("tutorial_algorithm_controls_title"),
+                "content": _("tutorial_algorithm_controls_content"),
                 "highlight_element": "next_step",
-                "action": "These buttons become active once you have a valid graph setup."
+                "action": _("tutorial_algorithm_controls_action")
             },
             {
-                "title": "Distances Table",
-                "content": "This table shows the current shortest known distances from the start node to all other nodes. As the algorithm progresses, these values get updated when shorter paths are discovered.",
+                "title": _("tutorial_distances_table_title"),
+                "content": _("tutorial_distances_table_content"),
                 "highlight_element": "display_distances",
-                "action": "Watch how these values change as you step through the algorithm."
+                "action": _("tutorial_distances_table_action")
             },
             {
-                "title": "Visited Nodes",
-                "content": "This card shows which nodes the algorithm has already processed. Once a node is visited, its shortest path has been finalized.",
+                "title": _("tutorial_visited_nodes_title"),
+                "content": _("tutorial_visited_nodes_content"),
                 "highlight_element": "visited_nodes",
-                "action": "Visited nodes appear here as the algorithm progresses."
+                "action": _("tutorial_visited_nodes_action")
             },
             {
-                "title": "Algorithm Explanation",
-                "content": "This section provides detailed explanations of what's happening at each step of the algorithm, helping you understand the logic behind Dijkstra's method.",
+                "title": _("tutorial_algorithm_explanation_title"),
+                "content": _("tutorial_algorithm_explanation_content"),
                 "highlight_element": "explain",
-                "action": "Step-by-step explanations appear here during execution."
+                "action": _("tutorial_algorithm_explanation_action")
             },
             {
-                "title": "Ready to Start!",
-                "content": "You're now ready to use PathSolver! Start by selecting a graph, setting your start and target nodes, then use the Next Step button to watch Dijkstra find the shortest path. Have fun exploring!",
+                "title": _("tutorial_ready_title"),
+                "content": _("tutorial_ready_content"),
                 "highlight_element": None,
                 "action": None
             }
@@ -128,7 +133,7 @@ def tutorial_modal_server(input, output, session):
         # Step counter
         modal_content.append(
             ui.div(
-                f"Step {tutorial.current_step() + 1} of {len(tutorial.steps)}",
+                _("tutorial_step_counter", step=tutorial.current_step() + 1, total=len(tutorial.steps)),
                 style="text-align: center; color: #666; font-size: 0.9em; margin-bottom: 10px;"
             )
         )
@@ -141,9 +146,10 @@ def tutorial_modal_server(input, output, session):
         
         # Highlight indicator if element is being highlighted
         if current_step["highlight_element"]:
+            element_name = current_step['highlight_element'].replace('_', ' ').title()
             modal_content.append(
                 ui.div(
-                    f"👁️ Look for the orange highlighted element: {current_step['highlight_element'].replace('_', ' ').title()}",
+                    _("tutorial_highlight_element", element=element_name),
                     style="background-color: #fff3cd; padding: 8px; border-radius: 5px; font-weight: 500; margin: 8px 0; border-left: 4px solid #ff6b35;"
                 )
             )
@@ -152,7 +158,7 @@ def tutorial_modal_server(input, output, session):
         if current_step["action"]:
             modal_content.append(
                 ui.div(
-                    f"💡 {current_step['action']}",
+                    _("tutorial_action_hint", action=current_step['action']),
                     style="background-color: #e7f3ff; padding: 10px; border-radius: 5px; font-style: italic; margin: 10px 0;"
                 )
             )
@@ -165,7 +171,7 @@ def tutorial_modal_server(input, output, session):
             nav_buttons.append(
                 ui.input_action_button(
                     "tutorial_skip", 
-                    "Skip Tutorial",
+                    _("tutorial_skip"),
                     class_="btn-secondary"
                 )
             )
@@ -175,7 +181,7 @@ def tutorial_modal_server(input, output, session):
             nav_buttons.append(
                 ui.input_action_button(
                     "tutorial_previous", 
-                    "Previous",
+                    _("tutorial_previous"),
                     class_="btn-outline-primary"
                 )
             )
@@ -185,7 +191,7 @@ def tutorial_modal_server(input, output, session):
             nav_buttons.append(
                 ui.input_action_button(
                     "tutorial_next", 
-                    "Next",
+                    _("tutorial_next"),
                     class_="btn-primary"
                 )
             )
@@ -193,7 +199,7 @@ def tutorial_modal_server(input, output, session):
             nav_buttons.append(
                 ui.input_action_button(
                     "tutorial_finish", 
-                    "Start Using PathSolver!",
+                    _("tutorial_finish"),
                     class_="btn-success"
                 )
             )
@@ -208,7 +214,7 @@ def tutorial_modal_server(input, output, session):
         # Create and show modal with custom styling
         m = ui.modal(
             *modal_content,
-            title="Interactive Tutorial",
+            title=_("interactive_tutorial"),
             easy_close=False,
             footer=None,
             size='m'

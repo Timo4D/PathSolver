@@ -8,6 +8,7 @@ from constants import (
     STEP_INITIALIZE, STEP_VISIT_NODES, STEP_FIND_NEXT_NODE, STEP_FINISH, STEP_SHOW_SOLUTION,
     ERROR_EMPTY_SOLUTION, ERROR_INVALID_FORMAT, ERROR_INCORRECT_SOLUTION
 )
+from localization import _
 from utils.graph_utils import dijkstra_solution
 
 
@@ -48,25 +49,24 @@ class DijkstraStepHandler:
     def initialize_step(self, input, df, G):
         """Initialize the first step of the algorithm."""
         self.state.step_explanation.set(
-            TagList("🚀 Starting Dijkstra's algorithm! First set distance to start node to 0 and every other node to infinity")
+            TagList(_("algorithm_start_message"))
         )
         
         # Check if the graph is connected before proceeding
         if not nx.is_connected(G):
             self.state.step_explanation.set(
                 TagList(
-                    "❌ Cannot run Dijkstra algorithm: The graph is not fully connected!",
+                    _("graph_not_connected"),
                     ui.br(), ui.br(),
-                    "A connected graph is required for Dijkstra's algorithm to find paths between all nodes. ",
-                    "This graph has isolated components that cannot reach each other.",
+                    _("connected_graph_required"),
                     ui.br(), ui.br(),
-                    "Please:",
+                    _("please_fix_graph"),
                     ui.br(),
-                    "• Generate a new random graph, or",
+                    _("generate_new_graph"),
                     ui.br(), 
-                    "• Add edges to connect all components, or",
+                    _("add_edges"),
                     ui.br(),
-                    "• Choose a different graph that is fully connected"
+                    _("choose_connected")
                 )
             )
             return
@@ -99,23 +99,23 @@ class DijkstraStepHandler:
             # Validate start node
             if start_node is None:
                 self.state.start_node_error.set(True)
-                self.state.step_explanation.set(TagList("Please select a start node"))
+                self.state.step_explanation.set(TagList(_("select_start_node")))
                 return
             
             if start_node not in G.nodes:
                 self.state.start_node_error.set(True)
-                self.state.step_explanation.set(TagList(f"Start node {start_node} does not exist in the graph. Available nodes: {list(G.nodes)}"))
+                self.state.step_explanation.set(TagList(_("start_node_not_exist", start_node=start_node, nodes=list(G.nodes))))
                 return
             
             # Validate target node
             if target_node is None:
                 self.state.target_node_error.set(True)
-                self.state.step_explanation.set(TagList("Please select a target node"))
+                self.state.step_explanation.set(TagList(_("select_target_node")))
                 return
                 
             if target_node not in G.nodes:
                 self.state.target_node_error.set(True)
-                self.state.step_explanation.set(TagList(f"Target node {target_node} does not exist in the graph. Available nodes: {list(G.nodes)}"))
+                self.state.step_explanation.set(TagList(_("target_node_not_exist", target_node=target_node, nodes=list(G.nodes))))
                 return
             
             # Both nodes are valid, proceed with algorithm
@@ -202,7 +202,7 @@ class DijkstraStepHandler:
         nodes_visited_text = None
         if nodes_visited_without_current:
             nodes_visited_text = TagList(
-                f"We will leave nodes {nodes_visited_without_current} out as we have already visited them", 
+                _("exclude_visited_nodes", nodes_visited_without_current=nodes_visited_without_current), 
                 ui.br()
             )
 
@@ -210,11 +210,11 @@ class DijkstraStepHandler:
         nodes_visited_count = len(self.state.nodes_visited.get())
         self.state.step_explanation.set(
             TagList(
-                f"🔍 Now examining neighbors of node {current_node} (visited {nodes_visited_count} nodes so far)", ui.br(),
+                _("examining_neighbors", current_node=current_node, nodes_visited_count=nodes_visited_count), ui.br(),
                 nodes_visited_text,
-                "You need to calculate the cost of all unvisited neighbours. To do this add the distance to your current node + the weight of the edge.",
+                _("calculate_neighbor_costs"),
                 ui.br(),
-                "If the weight is lower than what's already calculated we need to update it, otherwise we won't change it",
+                _("update_if_lower"),
                 ui.br(),
             )
         )
@@ -257,7 +257,7 @@ class DijkstraStepHandler:
             if len(finite_cost_nodes) > 1:  # Only ask for prediction if there are choices
                 # Store the correct answer and candidates
                 candidates = []
-                for _, row in finite_cost_nodes.iterrows():
+                for _index, row in finite_cost_nodes.iterrows():
                     node_lookup = row.iloc[0]
                     if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
                         label_to_node = {v: k for k, v in nx.get_node_attributes(G, "label").items()}
@@ -272,11 +272,11 @@ class DijkstraStepHandler:
                 # Don't proceed with algorithm until prediction is made
                 self.state.step_explanation.set(
                     TagList(
-                        "🎮 Prediction Game: Which node will Dijkstra visit next?",
+                        _("prediction_game_question"),
                         ui.br(), ui.br(),
-                        "Look at the unvisited nodes in the distance table and click on the one with the lowest cost in the graph above!",
+                        _("prediction_game_instructions"),
                         ui.br(), ui.br(),
-                        f"Unvisited nodes with finite distances: {candidates}"
+                        _("unvisited_candidates", candidates=candidates)
                     )
                 )
                 return
@@ -287,13 +287,10 @@ class DijkstraStepHandler:
         if self.state.current_node.get() == input.target_node():
             self.state.step_explanation.set(
                 TagList(
-                    "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it",
+                    _("target_reached"),
                     ui.br(),
-                    "You now have to enter your solution of the fastest path in new Box below. If it is correct you will see the path on the graph.",
-                    ui.br(),
-                    "The weights of the edges are now hidden, so try to get the solution with help of the table below.",
-                    ui.br(),
-                    "The Dijkstra Algorithm would trace the way from the Target node via its previous node until it arrives at the start node",
+                    _("enter_solution"),
+                    ui.br()
                 )
             )
             self.state.step_counter.set(self.state.step_counter.get() + 1)
@@ -302,10 +299,10 @@ class DijkstraStepHandler:
             total_nodes = len(G.nodes())
             self.state.step_explanation.set(
                 TagList(
-                    f"✅ Selected node {min_cost_node} (lowest unvisited cost) as our new current node.", ui.br(),
-                    f"🔄 Since {self.state.current_node.get()} is not our target node, we'll continue the algorithm by examining its neighbors next.",
+                    _("selected_lowest_cost_node", node=min_cost_node), ui.br(),
+                    _("continue_algorithm", node=self.state.current_node.get()),
                     ui.br(), ui.br(),
-                    f"Progress: {nodes_visited_count}/{total_nodes} nodes visited. This is the core of Dijkstra's algorithm: repeatedly select the unvisited node with minimum distance and explore its neighbors.",
+                    _("algorithm_progress", visited=nodes_visited_count, total=total_nodes),
                     ui.br()
                 )
             )

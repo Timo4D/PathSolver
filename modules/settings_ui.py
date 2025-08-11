@@ -2,6 +2,7 @@
 
 from shiny import ui, render, reactive, req
 from modules.state_manager import state_manager
+from localization import _, get_available_languages
 
 
 def settings_ui():
@@ -17,16 +18,27 @@ def settings_ui_server(input, output, session):
     
     @output
     @render.ui
-    @reactive.event(state_manager.settings_unlocked, state_manager.force_game_difficulty, state_manager.game_enabled, state_manager.force_game_mode, state_manager.graph_font_size)
+    @reactive.event(state_manager.settings_unlocked, state_manager.force_game_difficulty, state_manager.game_enabled, state_manager.force_game_mode, state_manager.graph_font_size, state_manager.current_language, state_manager.solution_quiz_enabled, state_manager.force_solution_quiz)
     def settings_content():
         """Render settings content based on unlock status."""
         
-        # Font size control - always available (accessibility feature)
-        font_size_control = ui.div(
-            ui.h4("Display Settings", class_="mb-3"),
+        # Display settings control - always available (accessibility feature)
+        display_settings_control = ui.div(
+            ui.h4(_("display_settings"), class_="mb-3"),
+            ui.input_selectize(
+                "app_language",
+                _("app_language"),
+                choices=get_available_languages(),
+                selected=state_manager.current_language()
+            ),
+            ui.p(
+                _("language_help"),
+                class_="text-muted small"
+            ),
+            ui.hr(),
             ui.input_slider(
                 "graph_font_size",
-                "Graph Font Size:",
+                _("graph_font_size"),
                 min=8,
                 max=36,
                 value=state_manager.graph_font_size(),
@@ -34,16 +46,16 @@ def settings_ui_server(input, output, session):
                 post="px"
             ),
             ui.p(
-                "Adjusts the font size of text displayed in the graph (node labels, distances, edge weights).",
+                _("font_size_help"),
                 class_="text-muted small"
             ),
             class_="card p-3 mb-4"
         )
         
         if not state_manager.settings_unlocked():
-            # Show password protection form with font size control
+            # Show password protection form with display settings control
             return ui.div(
-                font_size_control,
+                display_settings_control,
                 ui.div(
                     ui.h4("Administrative Settings", class_="mb-3"),
                     ui.p("Administrative settings are password protected. Please enter the admin password to access them."),
@@ -56,7 +68,7 @@ def settings_ui_server(input, output, session):
         else:
             # Show settings controls
             return ui.div(
-                font_size_control,
+                display_settings_control,
                 # Game Feature Toggle
                 ui.div(
                     ui.h4("Game Features", class_="mb-3"),
@@ -104,6 +116,36 @@ def settings_ui_server(input, output, session):
                         ),
                         id="force_difficulty_section",
                         style="opacity: 1" if state_manager.game_enabled() else "opacity: 0.5"
+                    ),
+                    class_="card p-3 mb-4"
+                ),
+                
+                # Solution Quiz Feature Toggle
+                ui.div(
+                    ui.h4(_("solution_quiz_settings"), class_="mb-3"),
+                    ui.input_switch(
+                        "settings_solution_quiz_enabled",
+                        _("enable_solution_quiz"),
+                        value=state_manager.solution_quiz_enabled()
+                    ),
+                    ui.p(
+                        _("solution_quiz_help"),
+                        class_="text-muted small"
+                    ),
+                    ui.hr(),
+                    ui.div(
+                        ui.input_switch(
+                            "force_solution_quiz",
+                            _("force_solution_quiz"),
+                            value=state_manager.force_solution_quiz() if state_manager.solution_quiz_enabled() else False
+                        ),
+                        ui.p(
+                            _("force_solution_quiz_help") + 
+                            (" " + _("requires_quiz_enabled") if not state_manager.solution_quiz_enabled() else ""),
+                            class_="text-muted small"
+                        ),
+                        id="force_solution_quiz_section",
+                        style="opacity: 1" if state_manager.solution_quiz_enabled() else "opacity: 0.5"
                     ),
                     class_="card p-3 mb-4"
                 ),
@@ -160,6 +202,8 @@ def settings_ui_server(input, output, session):
         force_game_status = "Yes" if state_manager.force_game_mode() else "No"
         force_difficulty = state_manager.force_game_difficulty.get()
         force_difficulty_status = force_difficulty.title() if force_difficulty else "User Choice"
+        quiz_status = "Enabled" if state_manager.solution_quiz_enabled() else "Disabled"
+        force_quiz_status = "Yes" if state_manager.force_solution_quiz() else "No"
         viz_mode = "Interactive (Cytoscape.js)" if state_manager.visualization_mode() == "cytoscape" else "Static (Matplotlib)"
         font_size = state_manager.graph_font_size()
         
@@ -167,6 +211,8 @@ def settings_ui_server(input, output, session):
             ui.p(f"Game Feature: {game_status}"),
             ui.p(f"Force Game Mode: {force_game_status}"),
             ui.p(f"Force Game Difficulty: {force_difficulty_status}"),
+            ui.p(f"Solution Quiz: {quiz_status}"),
+            ui.p(f"Force Solution Quiz: {force_quiz_status}"),
             ui.p(f"Visualization Mode: {viz_mode}"),
             ui.p(f"Graph Font Size: {font_size}px"),
             ui.p(f"Password Protection: {'Yes' if state_manager.config['settings']['password_protected'] else 'No'}")
@@ -288,6 +334,68 @@ def settings_ui_server(input, output, session):
                         duration=2
                     )
     
+    # Language handler - always active (accessibility feature)  
+    @reactive.Effect
+    def handle_language():
+        language = input.app_language()
+        if language is not None:
+            current_lang = state_manager.current_language()
+            if language != current_lang:  # Only update if actually changed
+                if state_manager.update_language(language):
+                    ui.notification_show(
+                        _("language_changed", language=language), 
+                        type="success",
+                        duration=2
+                    )
+                    # Force UI refresh by invalidating all reactive components
+                    state_manager.current_language.set(language)
+    
+    # Solution quiz feature toggle handler
+    @reactive.Effect
+    def handle_solution_quiz_toggle():
+        if state_manager.settings_unlocked():
+            enabled = input.settings_solution_quiz_enabled()
+            if enabled is not None:
+                # If disabling solution quiz feature, also disable force mode
+                if not enabled and state_manager.force_solution_quiz():
+                    state_manager.update_force_solution_quiz(False)
+                    ui.update_switch("force_solution_quiz", value=False)
+                
+                state_manager.update_solution_quiz_setting(enabled)
+                status = "enabled" if enabled else "disabled"
+                ui.notification_show(
+                    f"Solution quiz feature {status}.", 
+                    type="success",
+                    duration=2
+                )
+                
+                # Update the force solution quiz toggle visibility/state
+                ui.update_switch("force_solution_quiz", value=state_manager.force_solution_quiz() if enabled else False)
+    
+    # Force solution quiz handler
+    @reactive.Effect
+    def handle_force_solution_quiz():
+        if state_manager.settings_unlocked():
+            enabled = input.force_solution_quiz()
+            if enabled is not None:
+                # Only allow force mode if main solution quiz feature is enabled
+                if enabled and not state_manager.solution_quiz_enabled():
+                    ui.update_switch("force_solution_quiz", value=False)
+                    ui.notification_show(
+                        "Cannot force solution quiz when solution quiz feature is disabled.", 
+                        type="warning",
+                        duration=3
+                    )
+                    return
+                
+                state_manager.update_force_solution_quiz(enabled)
+                status = "enabled" if enabled else "disabled"
+                ui.notification_show(
+                    f"Force solution quiz {status}.", 
+                    type="success",
+                    duration=2
+                )
+    
     # Font size handler - always active (accessibility feature)
     @reactive.Effect
     def handle_font_size():
@@ -297,7 +405,7 @@ def settings_ui_server(input, output, session):
             if font_size != current_size:  # Only update if actually changed
                 state_manager.update_graph_font_size(font_size)
                 ui.notification_show(
-                    f"Graph font size changed to {font_size}px.", 
+                    _("font_size_changed", size=font_size), 
                     type="success",
                     duration=2
                 )
@@ -305,11 +413,14 @@ def settings_ui_server(input, output, session):
     # Initialize settings inputs based on current state
     @reactive.Effect
     def initialize_settings():
-        # Font size is always available (accessibility feature)
+        # Language and font size are always available (accessibility features)
+        ui.update_selectize("app_language", selected=state_manager.current_language())
         ui.update_slider("graph_font_size", value=state_manager.graph_font_size())
         
         if state_manager.settings_unlocked():
             ui.update_switch("settings_game_enabled", value=state_manager.game_enabled())
             ui.update_switch("force_game_mode", value=state_manager.force_game_mode())
             ui.update_selectize("force_game_difficulty", selected="user_choice" if state_manager.force_game_difficulty.get() is None else state_manager.force_game_difficulty.get())
+            ui.update_switch("settings_solution_quiz_enabled", value=state_manager.solution_quiz_enabled())
+            ui.update_switch("force_solution_quiz", value=state_manager.force_solution_quiz())
             ui.update_radio_buttons("visualization_mode", selected=state_manager.visualization_mode())

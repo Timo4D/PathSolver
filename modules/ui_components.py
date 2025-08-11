@@ -15,9 +15,10 @@ from constants import (COLOR_ACTIVE, COLOR_INACTIVE, COLOR_START_NODE,
                        ERROR_INVALID_DATA, ERROR_NODE_NOT_IN_GRAPH,
                        MAX_NEIGHBORS, MAX_NODES, MAX_REWIRE_PROB,
                        MIN_NEIGHBORS, MIN_NODES, MIN_REWIRE_PROB,
-                       STEP_HEADINGS)
+                       get_step_headings)
+from localization import _
 from modules.cytoscape.graph_component import output_cytoscape_graph
-from modules.dijkstra_explanation import dijkstra_explanation
+from modules.dijkstra_explanation import get_dijkstra_explanation
 from modules.tutorial_modal import tutorial_modal
 from utils.icons import warning as warning_icon
 
@@ -37,21 +38,12 @@ def main_ui():
             ui.sidebar(
                 tutorial_modal(),
                 ui.output_ui("dynamic_game_toggle"),
+                ui.output_ui("dynamic_solution_quiz_toggle"),
                 ui.output_ui("game_difficulty_selector"),
-                graph_selection_ui(),
+                ui.output_ui("dynamic_graph_selection"),
                 ui.output_ui("graph_generator_settings"),
-                ui.input_numeric(
-                    "start_node",
-                    ui.span("Start Node", ui.output_ui("start_node_error_message")),
-                    value=DEFAULT_START_NODE,
-                    min=0,
-                ),
-                ui.input_numeric(
-                    "target_node",
-                    ui.span("Target Node", ui.output_ui("target_node_error_message")),
-                    value=DEFAULT_TARGET_NODE,
-                    min=0,
-                ),
+                ui.output_ui("dynamic_start_node"),
+                ui.output_ui("dynamic_target_node"),
                 ui.output_ui("layout_seed_control"),
             ),
             ui.output_ui("graph_display"),
@@ -59,8 +51,8 @@ def main_ui():
             ui.output_ui("prediction_game_ui"),
             ui.output_ui("explain"),
             ui.row(
-                ui.column(6, ui.output_ui("render_solution_quiz_ui"), distances_ui()),
-                ui.column(6, visited_nodes_ui(), algorithm_explanation_ui()),
+                ui.column(6, ui.output_ui("render_solution_quiz_ui"), ui.output_ui("dynamic_distances")),
+                ui.column(6, ui.output_ui("dynamic_visited_nodes"), ui.output_ui("algorithm_explanation")),
             ),
         ),
     )
@@ -70,12 +62,12 @@ def graph_selection_ui():
     """Graph selection dropdown UI."""
     return ui.input_selectize(
         "selectize_graph",
-        "Select a Graph",
+        _("select_graph"),
         {
-            GraphType.RANDOM_GRAPH.value: "Random Graph",
-            GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Germany Example",
-            GraphType.EDGE_LIST.value: "Import from Edgelist",
-            GraphType.CSV_FILE.value: "Upload a CSV file",
+            GraphType.RANDOM_GRAPH.value: _("random_graph"),
+            GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: _("germany_example"),
+            GraphType.EDGE_LIST.value: _("import_edgelist"),
+            GraphType.CSV_FILE.value: _("upload_csv"),
         },
         selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value,
     )
@@ -84,7 +76,7 @@ def graph_selection_ui():
 def distances_ui():
     """Distances table UI component."""
     return ui.card(
-        ui.card_header("Distances between nodes"),
+        ui.card_header(_("distances_header")),
         ui.card_body(
             ui.output_data_frame("display_distances"),
         ),
@@ -138,15 +130,15 @@ def get_filtered_distances_for_difficulty(df, difficulty, nodes_visited, current
 def visited_nodes_ui():
     """Visited nodes display UI component."""
     return ui.card(
-        ui.card_header("Visited Nodes"), ui.card_body(ui.output_ui("visited_nodes"))
+        ui.card_header(_("visited_nodes_header")), ui.card_body(ui.output_ui("visited_nodes"))
     )
 
 
 def algorithm_explanation_ui():
     """Algorithm explanation UI component."""
     return ui.card(
-        ui.card_header("Explanation of the Algorithm"),
-        ui.card_body(dijkstra_explanation),
+        ui.card_header(_("algorithm_explanation_header")),
+        ui.card_body(get_dijkstra_explanation()),
     )
 
 
@@ -164,14 +156,14 @@ def game_difficulty_selector_ui():
     if forced_difficulty:
         # Show read-only forced difficulty
         difficulty_labels = {
-            "easy": "🟢 Easy - Full hints and distances shown",
-            "medium": "🟡 Medium - Some visual aids hidden", 
-            "hard": "🔴 Hard - Minimal visual information"
+            "easy": _("difficulty_easy_desc"),
+            "medium": _("difficulty_medium_desc"), 
+            "hard": _("difficulty_hard_desc")
         }
         
         return ui.div(
             ui.div(
-                ui.strong(f"🎯 Game Difficulty (Forced by Instructor)"),
+                ui.strong(_("game_difficulty_forced")),
                 style="margin-bottom: 5px;"
             ),
             ui.div(
@@ -179,7 +171,7 @@ def game_difficulty_selector_ui():
                 style="padding: 8px; background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px;"
             ),
             ui.p(
-                "The difficulty level has been set by your instructor and cannot be changed.",
+                _("difficulty_forced_message"),
                 style="font-size: 0.8em; color: #6c757d; margin: 5px 0 0 0;"
             ),
             style="margin-bottom: 10px;"
@@ -189,11 +181,11 @@ def game_difficulty_selector_ui():
         return ui.div(
             ui.input_selectize(
                 "game_difficulty",
-                "🎯 Game Difficulty",
+                _("game_difficulty"),
                 choices={
-                    "easy": "🟢 Easy",
-                    "medium": "🟡 Medium", 
-                    "hard": "🔴 Hard"
+                    "easy": _("difficulty_easy"),
+                    "medium": _("difficulty_medium"), 
+                    "hard": _("difficulty_hard")
                 },
                 selected="medium",
             ),
@@ -212,19 +204,46 @@ def prediction_game_toggle_ui():
     if state_manager.force_game_mode():
         return ui.div(
             ui.div(
-                ui.strong("🎮 Prediction Game Mode (Forced On)"),
+                ui.strong(_("prediction_game_forced")),
                 style="margin-bottom: 5px;"
             ),
             ui.p(
-                "Game mode is forced on by administrator settings.",
+                _("game_mode_forced_message"),
                 style="font-size: 0.8em; color: #6c757d; margin: 0;"
             )
         )
     
     return ui.input_switch(
         "game_enabled",
-        "🎮 Prediction Game Mode",
+        _("prediction_game_mode"),
         value=False,
+    )
+
+
+def solution_quiz_toggle_ui():
+    """Toggle for enabling solution quiz - only shown if enabled in settings."""
+    from modules.state_manager import state_manager
+    
+    if not state_manager.solution_quiz_enabled.get():
+        return ui.div()  # Return empty div if quiz is disabled in settings
+    
+    # If force solution quiz is enabled, show a read-only message that it's always on
+    if state_manager.force_solution_quiz.get():
+        return ui.div(
+            ui.div(
+                ui.strong(_("solution_quiz_forced")),
+                style="margin-bottom: 5px;"
+            ),
+            ui.p(
+                _("solution_quiz_forced_message"),
+                style="font-size: 0.8em; color: #6c757d; margin: 0;"
+            )
+        )
+    
+    return ui.input_switch(
+        "solution_quiz_enabled",
+        _("enable_solution_quiz_user"),
+        value=True,
     )
 
 
@@ -246,16 +265,17 @@ def create_prediction_game_ui(
     feedback_style = ""
     if last_prediction_correct is not None:
         if last_prediction_correct:
-            feedback_message = f"✅ Correct! +{10 + min(consecutive_correct * 2, 20)} points"
+            points = 10 + min(consecutive_correct * 2, 20)
+            feedback_message = _("prediction_correct").format(points=points)
             feedback_style = "color: #28a745; font-weight: bold;"
         else:
-            feedback_message = "❌ Incorrect. The algorithm chose a different node."
+            feedback_message = _("prediction_incorrect")
             feedback_style = "color: #dc3545; font-weight: bold;"
     
     return ui.card(
         ui.card_header(
             ui.div(
-                "🎯 Prediction Challenge",
+                _("prediction_challenge"),
                 style="display: inline-block; margin-right: 20px; font-size: 1.1em; font-weight: bold;"
             ),
             ui.div(
@@ -277,9 +297,9 @@ def create_prediction_game_ui(
         ),
         ui.card_body(
             ui.div(feedback_message, style=feedback_style) if feedback_message else None,
-            ui.h4("Which node will Dijkstra visit next?", style="color: #007bff; margin-top: 10px;"),
+            ui.h4(_("prediction_question"), style="color: #007bff; margin-top: 10px;"),
             ui.p(
-                "Look at the distances table and click on the unvisited node with the lowest cost!",
+                _("prediction_instruction"),
                 style="margin-bottom: 15px;"
             ),
             ui.div(
@@ -295,14 +315,14 @@ def create_progress_bar(step_counter):
     """Create progress bar UI."""
     return TagList(
         ui.layout_columns(
-            ui.input_action_button("prev_step", "Previous Step"),
+            ui.input_action_button("prev_step", _("prev_step")),
             *[
                 ui.div(
                     style=f"background-color: {COLOR_ACTIVE if step_counter >= i else COLOR_INACTIVE}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;"
                 )
                 for i in range(4)
             ],
-            ui.input_action_button("next_step", "Next Step"),
+            ui.input_action_button("next_step", _("next_step")),
         )
     )
 
@@ -310,7 +330,8 @@ def create_progress_bar(step_counter):
 def create_explanation_ui(step_counter, step_explanation, global_step_counter=None):
     """Create step explanation UI."""
     # Create the main heading
-    heading = STEP_HEADINGS.get(step_counter)
+    step_headings = get_step_headings()
+    heading = step_headings.get(step_counter)
     
     # Add global step counter if provided
     if global_step_counter is not None and global_step_counter > 0:
@@ -327,18 +348,18 @@ def render_graph_generator_settings(graph_type):
     if graph_type == GraphType.RANDOM_GRAPH.value:
         return ui.TagList(
             ui.input_slider(
-                "n_slider", "Number of Nodes", MIN_NODES, MAX_NODES, DEFAULT_NODES
+                "n_slider", _("number_of_nodes"), MIN_NODES, MAX_NODES, DEFAULT_NODES
             ),
             ui.input_slider(
                 "k_slider",
-                "Neighbors in a ring topology",
+                _("ring_neighbors"),
                 MIN_NEIGHBORS,
                 MAX_NEIGHBORS,
                 DEFAULT_NEIGHBORS,
             ),
             ui.input_slider(
                 "p_slider",
-                "Probability of rewiring each edge",
+                _("rewiring_probability"),
                 MIN_REWIRE_PROB,
                 MAX_REWIRE_PROB,
                 DEFAULT_REWIRE_PROB,
@@ -348,7 +369,7 @@ def render_graph_generator_settings(graph_type):
         return ui.TagList(
             ui.input_text_area(
                 "edge_list_input",
-                ui.span("Edge List", ui.output_ui("edge_list_error_message")),
+                ui.span(_("edge_list"), ui.output_ui("edge_list_error_message")),
                 "0 1 10\n1 2 10\n2 0 20",
                 rows=10,
                 autoresize=True,
@@ -358,7 +379,7 @@ def render_graph_generator_settings(graph_type):
         return ui.TagList(
             ui.input_file(
                 "edge_list_file",
-                ui.span("Upload an edge list", ui.output_ui("edge_list_error_message")),
+                ui.span(_("upload_edge_list"), ui.output_ui("edge_list_error_message")),
             )
         )
 
@@ -415,10 +436,10 @@ def render_distances_table(df, start_node, target_node):
 def _get_difficulty_hint(difficulty):
     """Get hint text based on game difficulty level."""
     if difficulty == "easy":
-        return "💡 Easy Mode: The algorithm always selects the unvisited node with the minimum distance. Look at the distances table for guidance\!"
+        return _("difficulty_hint_easy")
     elif difficulty == "medium":
-        return "💡 Medium Mode: The algorithm selects the unvisited node with the lowest cost. Some visual aids are reduced."
+        return _("difficulty_hint_medium")
     elif difficulty == "hard":
-        return "💡 Hard Mode: Think carefully about which unvisited node has the shortest path from the start. Visual information is minimal\!"
+        return _("difficulty_hint_hard")
     else:
-        return "💡 The algorithm always selects the unvisited node with the minimum distance."
+        return _("difficulty_hint_default")
