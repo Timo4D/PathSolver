@@ -148,6 +148,10 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
         # Style nodes based on current state (order matters for priority)
         classes = []
         
+        # Mark example graph nodes (those with labels) for special styling
+        if "label" in node_attrs:
+            classes.append("example-graph")
+        
         if node_id == current_node:
             classes.append("current")
         elif node_id == start_node:
@@ -215,6 +219,14 @@ def get_cytoscape_styles(font_size=16):
                 "font-weight": "bold",  # Make text bold for better readability
                 "text-wrap": "wrap",  # Allow text wrapping
                 "text-max-width": "140px"  # Original text width limit
+            }
+        },
+        {
+            "selector": "node.example-graph",
+            "style": {
+                "shape": "round-rectangle",  # Rounded rectangle for example graphs
+                "width": 100,  # Slightly wider for city names
+                "height": 80,
             }
         },
         {
