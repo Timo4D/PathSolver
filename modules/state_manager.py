@@ -43,7 +43,7 @@ class StateManager:
         
         # Prediction game state
         self.game_enabled = reactive.Value(self.config["settings"]["game_feature_enabled"])
-        self.game_difficulty = reactive.Value("medium")  # easy, medium, hard
+        self.game_difficulty = reactive.Value("easy")  # easy, medium, hard
         self.game_score = reactive.Value(0)
         self.consecutive_correct = reactive.Value(0)
         self.waiting_for_prediction = reactive.Value(False)
@@ -56,6 +56,7 @@ class StateManager:
         self.visualization_mode = reactive.Value(self.config["settings"]["visualization_mode"])
         self.force_game_mode = reactive.Value(self.config["settings"]["force_game_mode"])
         self.force_game_difficulty = reactive.Value(self.config["settings"]["force_game_difficulty"])
+        self.graph_font_size = reactive.Value(self.config["settings"].get("graph_font_size", 16))  # Default 16px
         self.settings_unlocked = reactive.Value(not self.config["settings"]["password_protected"])
         self.admin_password = self.config["settings"]["admin_password"]
     
@@ -157,6 +158,7 @@ class StateManager:
                     "force_game_mode": False,
                     "force_game_difficulty": None,
                     "visualization_mode": "cytoscape",
+                    "graph_font_size": 16,
                     "password_protected": False,
                     "admin_password": "admin123"
                 }
@@ -198,6 +200,11 @@ class StateManager:
         """Update forced game difficulty setting."""
         if difficulty is None or difficulty in ["easy", "medium", "hard"]:
             self.force_game_difficulty.set(difficulty)
+    
+    def update_graph_font_size(self, size):
+        """Update graph font size setting."""
+        if isinstance(size, (int, float)) and 8 <= size <= 36:
+            self.graph_font_size.set(size)
     
     def get_effective_game_difficulty(self):
         """Get the effective game difficulty (forced or user-selected)."""

@@ -198,7 +198,7 @@ def convert_graph_to_cytoscape(graph, current_node=None, start_node=None, target
     return elements
 
 
-def get_cytoscape_styles():
+def get_cytoscape_styles(font_size=16):
     """Get Cytoscape styles for different node and edge states to match matplotlib colors."""
     return [
         {
@@ -211,7 +211,7 @@ def get_cytoscape_styles():
                 "height": 80,  # Back to original size
                 "text-valign": "center",
                 "text-halign": "center",
-                "font-size": "20px",  # Increased from 16px to 20px for better infinity symbol visibility
+                "font-size": f"{font_size}px",
                 "font-weight": "bold",  # Make text bold for better readability
                 "text-wrap": "wrap",  # Allow text wrapping
                 "text-max-width": "140px"  # Original text width limit
@@ -268,7 +268,7 @@ def get_cytoscape_styles():
                 "target-arrow-color": "#000000",
                 "target-arrow-shape": "triangle",
                 "label": "data(weight)",
-                "font-size": "16px",
+                "font-size": f"{font_size}px",
                 "font-weight": "bold",
                 "color": "#000000",
                 "text-background-color": "#ffffff",

@@ -17,15 +17,36 @@ def settings_ui_server(input, output, session):
     
     @output
     @render.ui
-    @reactive.event(state_manager.settings_unlocked, state_manager.force_game_difficulty, state_manager.game_enabled, state_manager.force_game_mode)
+    @reactive.event(state_manager.settings_unlocked, state_manager.force_game_difficulty, state_manager.game_enabled, state_manager.force_game_mode, state_manager.graph_font_size)
     def settings_content():
         """Render settings content based on unlock status."""
+        
+        # Font size control - always available (accessibility feature)
+        font_size_control = ui.div(
+            ui.h4("Display Settings", class_="mb-3"),
+            ui.input_slider(
+                "graph_font_size",
+                "Graph Font Size:",
+                min=8,
+                max=36,
+                value=state_manager.graph_font_size(),
+                step=1,
+                post="px"
+            ),
+            ui.p(
+                "Adjusts the font size of text displayed in the graph (node labels, distances, edge weights).",
+                class_="text-muted small"
+            ),
+            class_="card p-3 mb-4"
+        )
+        
         if not state_manager.settings_unlocked():
-            # Show password protection form
+            # Show password protection form with font size control
             return ui.div(
+                font_size_control,
                 ui.div(
-                    ui.h4("Access Control", class_="mb-3"),
-                    ui.p("This settings page is password protected. Please enter the admin password to continue."),
+                    ui.h4("Administrative Settings", class_="mb-3"),
+                    ui.p("Administrative settings are password protected. Please enter the admin password to access them."),
                     ui.input_password("admin_password", "Admin Password:", placeholder="Enter password"),
                     ui.input_action_button("authenticate", "Unlock Settings", class_="btn-primary"),
                     ui.output_ui("auth_message"),
@@ -35,6 +56,7 @@ def settings_ui_server(input, output, session):
         else:
             # Show settings controls
             return ui.div(
+                font_size_control,
                 # Game Feature Toggle
                 ui.div(
                     ui.h4("Game Features", class_="mb-3"),
@@ -139,12 +161,14 @@ def settings_ui_server(input, output, session):
         force_difficulty = state_manager.force_game_difficulty.get()
         force_difficulty_status = force_difficulty.title() if force_difficulty else "User Choice"
         viz_mode = "Interactive (Cytoscape.js)" if state_manager.visualization_mode() == "cytoscape" else "Static (Matplotlib)"
+        font_size = state_manager.graph_font_size()
         
         return ui.div(
             ui.p(f"Game Feature: {game_status}"),
             ui.p(f"Force Game Mode: {force_game_status}"),
             ui.p(f"Force Game Difficulty: {force_difficulty_status}"),
             ui.p(f"Visualization Mode: {viz_mode}"),
+            ui.p(f"Graph Font Size: {font_size}px"),
             ui.p(f"Password Protection: {'Yes' if state_manager.config['settings']['password_protected'] else 'No'}")
         )
     
@@ -264,9 +288,26 @@ def settings_ui_server(input, output, session):
                         duration=2
                     )
     
+    # Font size handler - always active (accessibility feature)
+    @reactive.Effect
+    def handle_font_size():
+        font_size = input.graph_font_size()
+        if font_size is not None:
+            current_size = state_manager.graph_font_size()
+            if font_size != current_size:  # Only update if actually changed
+                state_manager.update_graph_font_size(font_size)
+                ui.notification_show(
+                    f"Graph font size changed to {font_size}px.", 
+                    type="success",
+                    duration=2
+                )
+    
     # Initialize settings inputs based on current state
     @reactive.Effect
     def initialize_settings():
+        # Font size is always available (accessibility feature)
+        ui.update_slider("graph_font_size", value=state_manager.graph_font_size())
+        
         if state_manager.settings_unlocked():
             ui.update_switch("settings_game_enabled", value=state_manager.game_enabled())
             ui.update_switch("force_game_mode", value=state_manager.force_game_mode())

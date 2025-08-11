@@ -304,7 +304,7 @@ def graph_ui_server(input, output, session):
         state_manager.graph, input.start_node, input.target_node, 
         state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
         state_manager.prediction_candidates, state_manager.visualization_mode, state_manager.game_difficulty,
-        state_manager.force_game_difficulty
+        state_manager.force_game_difficulty, state_manager.graph_font_size
     )
     def cytoscape_graph():
         """Render the graph using Cytoscape.js."""
@@ -313,7 +313,7 @@ def graph_ui_server(input, output, session):
             # Return empty structure instead of None to prevent payload issues
             return {
                 "elements": [],
-                "style": get_cytoscape_styles(),
+                "style": get_cytoscape_styles(state_manager.graph_font_size()),
                 "layout": get_cytoscape_layout()
             }
             
@@ -322,7 +322,7 @@ def graph_ui_server(input, output, session):
             # Return empty structure if no graph
             return {
                 "elements": [],
-                "style": get_cytoscape_styles(),
+                "style": get_cytoscape_styles(state_manager.graph_font_size()),
                 "layout": get_cytoscape_layout()
             }
             
@@ -340,7 +340,7 @@ def graph_ui_server(input, output, session):
         
         return {
             "elements": elements,
-            "style": get_cytoscape_styles(),
+            "style": get_cytoscape_styles(state_manager.graph_font_size()),
             "layout": get_cytoscape_layout()
         }
 
