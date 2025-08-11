@@ -285,15 +285,40 @@ class DijkstraStepHandler:
         self.state.current_node.set(min_cost_node)
 
         if self.state.current_node.get() == input.target_node():
-            self.state.step_explanation.set(
-                TagList(
-                    _("target_reached"),
-                    ui.br(),
-                    _("enter_solution"),
-                    ui.br()
-                )
+            # Check if solution quiz should be shown
+            # Quiz is shown if: admin enabled it AND (admin forced it OR user enabled it)
+            quiz_should_show = self.state.solution_quiz_enabled.get() and (
+                self.state.force_solution_quiz.get() or  # Admin forced it on
+                (input.solution_quiz_enabled() if input.solution_quiz_enabled() is not None else True)  # User choice (default True)
             )
-            self.state.step_counter.set(self.state.step_counter.get() + 1)
+            
+            if quiz_should_show:
+                # Show quiz input form
+                self.state.step_explanation.set(
+                    TagList(
+                        _("target_reached"),
+                        ui.br(),
+                        _("enter_solution"),
+                        ui.br()
+                    )
+                )
+                self.state.step_counter.set(self.state.step_counter.get() + 1)  # Move to STEP_FINISH
+            else:
+                # Automatically show solution without quiz
+                if not self.state.solution.get():
+                    solution = dijkstra_solution(self.state.graph.get(), input.start_node(), input.target_node())
+                    self.state.solution.set(solution)
+                
+                self.state.step_explanation.set(
+                    TagList(
+                        _("target_reached"),
+                        ui.br(),
+                        _("congratulations_message"),
+                        ui.br()
+                    )
+                )
+                self.state.step_counter.set(STEP_SHOW_SOLUTION)  # Skip STEP_FINISH and go directly to STEP_SHOW_SOLUTION
+                self.show_solution(self.state.solution.get())
         else:
             nodes_visited_count = len(self.state.nodes_visited.get())
             total_nodes = len(G.nodes())
