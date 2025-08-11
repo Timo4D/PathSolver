@@ -430,17 +430,11 @@ def tutorial_modal_server(input, output, session):
         # CSS to highlight the target element
         return ui.tags.style(f"""
             #{highlight_element} {{
-                animation: tutorial-pulse 2s infinite;
                 border: 3px solid #007bff !important;
                 border-radius: 5px !important;
                 box-shadow: 0 0 10px rgba(0, 123, 255, 0.5) !important;
             }}
             
-            @keyframes tutorial-pulse {{
-                0% {{ box-shadow: 0 0 10px rgba(0, 123, 255, 0.5); }}
-                50% {{ box-shadow: 0 0 20px rgba(0, 123, 255, 0.8); }}
-                100% {{ box-shadow: 0 0 10px rgba(0, 123, 255, 0.5); }}
-            }}
         """)
     
     # Return the tutorial object so main server can access state

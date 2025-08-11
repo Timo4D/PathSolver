@@ -633,7 +633,6 @@ def graph_ui_server(input, output, session):
         # CSS to highlight the target element with enhanced visibility
         return ui.tags.style(f"""
             #{highlight_element} {{
-                animation: tutorial-pulse 2s infinite;
                 border: 4px solid #ff6b35 !important;
                 border-radius: 8px !important;
                 box-shadow: 0 0 20px rgba(255, 107, 53, 0.6) !important;
@@ -651,29 +650,9 @@ def graph_ui_server(input, output, session):
                 bottom: -8px;
                 border: 2px dashed #ff6b35;
                 border-radius: 12px;
-                animation: tutorial-rotate 3s linear infinite;
                 z-index: -1;
             }}
             
-            @keyframes tutorial-pulse {{
-                0% {{ 
-                    box-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
-                    transform: scale(1);
-                }}
-                50% {{ 
-                    box-shadow: 0 0 30px rgba(255, 107, 53, 0.9);
-                    transform: scale(1.02);
-                }}
-                100% {{ 
-                    box-shadow: 0 0 20px rgba(255, 107, 53, 0.6);
-                    transform: scale(1);
-                }}
-            }}
-            
-            @keyframes tutorial-rotate {{
-                from {{ transform: rotate(0deg); }}
-                to {{ transform: rotate(360deg); }}
-            }}
             
             /* Special handling for different UI elements */
             #{highlight_element}.form-control,
