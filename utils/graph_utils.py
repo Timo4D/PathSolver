@@ -275,7 +275,7 @@ def get_cytoscape_styles(font_size=16):
         {
             "selector": "edge",
             "style": {
-                "width": 2,
+                "width": 4,
                 "line-color": "#000000",  # Default black color like matplotlib
                 "target-arrow-color": "#000000",
                 "target-arrow-shape": "triangle",
@@ -294,7 +294,7 @@ def get_cytoscape_styles(font_size=16):
         {
             "selector": "edge.current",
             "style": {
-                "width": 4,
+                "width": 6,
                 "line-color": "#d62728",  # tab:red to match matplotlib current edges
                 "target-arrow-color": "#d62728"
             }

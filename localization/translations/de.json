@@ -217,8 +217,8 @@
   "target_reached": "Wir sind nun an unserem Zielknoten angekommen, das bedeutet, wir sind fertig und haben die kürzeste mögliche Entfernung dazu gefunden",
   "enter_solution": "Sie müssen nun Ihre Lösung für den schnellsten Pfad in das neue Feld unten eingeben. Wenn sie richtig ist, sehen Sie den Pfad im Graphen.",
   
-  "context_menu_start": "🎯 Start",
-  "context_menu_target": "🏁 Ziel",
+  "context_menu_start": "🎯 Startknoten",
+  "context_menu_target": "🏁 Zielknoten",
   "context_menu_connect": "🔗 Verbinden mit...",
   "context_menu_delete": "🗑️ Löschen",
   "context_menu_edit_weight": "⚖️ Gewicht bearbeiten",
