@@ -4,6 +4,7 @@ from modules.dijkstra_info import dijkstra_info
 from modules.graph_ui import graph_ui, graph_ui_server
 from modules.project_information import project_information
 from modules.settings_ui import settings_ui, settings_ui_server
+from modules.copyright_footer import copyright_footer
 from localization import _
 
 example_page = ui.page_fluid(
@@ -34,10 +35,10 @@ def server(input, output, session):
     @reactive.event(state_manager.current_language)
     def dynamic_app_ui():
         return ui.page_navbar(
-            ui.nav_panel(_("nav_start"), graph_ui()),
-            ui.nav_panel(_("nav_about"), ui.output_ui("dynamic_project_info")),
-            ui.nav_panel(_("nav_algorithm_info"), ui.output_ui("dynamic_dijkstra_info")),
-            ui.nav_panel(_("nav_settings"), settings_ui()),
+            ui.nav_panel(_("nav_start"), ui.div(graph_ui(), copyright_footer(), style="min-height: 100vh; display: flex; flex-direction: column;")),
+            ui.nav_panel(_("nav_about"), ui.div(ui.output_ui("dynamic_project_info"), copyright_footer(), style="min-height: 100vh; display: flex; flex-direction: column;")),
+            ui.nav_panel(_("nav_algorithm_info"), ui.div(ui.output_ui("dynamic_dijkstra_info"), copyright_footer(), style="min-height: 100vh; display: flex; flex-direction: column;")),
+            ui.nav_panel(_("nav_settings"), ui.div(settings_ui(), copyright_footer(), style="min-height: 100vh; display: flex; flex-direction: column;")),
             title=_("app_title"),
         )
     
