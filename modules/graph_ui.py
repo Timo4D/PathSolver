@@ -19,7 +19,13 @@ from modules.cytoscape.graph_component import render_cytoscape
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal_server
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list, generate_from_address
-from utils.graph_utils import plot_graph, plot_map_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout
+from utils.graph_utils import plot_graph, plot_map_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout, create_ipyleaflet_map, create_plotly_map
+
+try:
+    from shinywidgets import output_widget, render_widget
+    SHINYWIDGETS_AVAILABLE = True
+except ImportError:
+    SHINYWIDGETS_AVAILABLE = False
 
 
 def graph_ui():
@@ -169,8 +175,44 @@ def graph_ui_server(input, output, session):
         algorithm_handler.handle_next_step(input)
 
     @reactive.Effect
+    @reactive.event(
+        input.selectize_graph, input.n_slider, input.k_slider, input.p_slider,
+        input.edge_list_input, input.map_distance
+    )
     def update_graph():
         _update_graph_based_on_selection(input)
+    
+    @reactive.Effect
+    @reactive.event(input.map_address, ignore_init=True)
+    def update_map_graph():
+        """Handle map address changes with debouncing."""
+        # Only update if MAP is selected and address is complete enough
+        if input.selectize_graph() == GraphType.MAP.value:
+            address = input.map_address()
+            if address and len(address.strip()) >= 5:  # Minimum reasonable address length
+                # Show loading message
+                state_manager.step_explanation.set(TagList(f"Loading map for: {address}..."))
+                state_manager.invalid_edge_list.set(False)
+                
+                try:
+                    distance = input.map_distance()
+                    network_type = "drive"
+                    print(f"Generating map for address: {address}")  # Debug output
+                    result = generate_from_address(address, distance, network_type)
+                    if isinstance(result, str):
+                        state_manager.invalid_edge_list.set(True)
+                        state_manager.step_explanation.set(TagList(result))
+                    else:
+                        state_manager.invalid_edge_list.set(False)
+                        state_manager.graph.set(result)
+                        state_manager.update_visualization_mode("matplotlib")
+                        state_manager.step_explanation.set(TagList(f"Map loaded successfully: {len(result.nodes())} intersections, {len(result.edges())} streets"))
+                        print(f"Map generated successfully with {len(result.nodes())} nodes")
+                except Exception as e:
+                    error_msg = f"Error generating map: {str(e)}"
+                    print(error_msg)
+                    state_manager.invalid_edge_list.set(True)
+                    state_manager.step_explanation.set(TagList(error_msg))
 
     @output
     @render.data_frame
@@ -282,11 +324,29 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
-    @reactive.event(state_manager.visualization_mode)
+    @reactive.event(state_manager.visualization_mode, input.selectize_graph)
     def graph_display():
-        """Conditionally render either cytoscape or matplotlib graph."""
+        """Conditionally render cytoscape, matplotlib, or plotly graph."""
         mode = state_manager.visualization_mode()
-        if mode == "cytoscape":
+        graph = state_manager.graph.get()
+        selected_graph_type = input.selectize_graph()
+        
+        # Force Plotly for MAP graph type regardless of visualization mode
+        if selected_graph_type == GraphType.MAP.value and SHINYWIDGETS_AVAILABLE:
+            return ui.div(
+                output_widget("plotly_map", height="600px"),
+                key=f"plotly-map-{mode}"
+            )
+        # Check if current graph has geographic coordinates for plotly (fallback)
+        elif (graph and len(graph.nodes()) > 0 and 
+              all('x' in graph.nodes[node] and 'y' in graph.nodes[node] 
+                  for node in list(graph.nodes())[:min(5, len(graph.nodes()))]) and
+              SHINYWIDGETS_AVAILABLE and mode != "cytoscape"):
+            return ui.div(
+                output_widget("plotly_map", height="600px"),
+                key=f"plotly-{mode}"
+            )
+        elif mode == "cytoscape":
             from modules.cytoscape.graph_component import output_cytoscape_graph
             # Add a key to force recreation when switching modes
             return ui.div(
@@ -491,6 +551,64 @@ def graph_ui_server(input, output, session):
                 dark_mode=False,
                 final_step=False
             )
+
+    @output
+    @render_widget
+    @reactive.event(
+        state_manager.graph, input.start_node, input.target_node, 
+        state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
+        state_manager.visualization_mode
+    )
+    def plotly_map():
+        """Render the graph using Plotly for clean interactive maps."""
+        graph = state_manager.graph.get()
+        if not graph:
+            return None
+        
+        # Check if this is a map graph (has geographic coordinates)
+        has_geo_coords = (graph and len(graph.nodes()) > 0 and 
+                         all('x' in graph.nodes[node] and 'y' in graph.nodes[node] 
+                             for node in list(graph.nodes())[:min(5, len(graph.nodes()))]))
+        
+        if not has_geo_coords:
+            return None
+            
+        start_node = None
+        target_node = None
+        
+        # Parse start and target nodes
+        if input.start_node():
+            try:
+                start_node = int(input.start_node())
+            except (ValueError, TypeError):
+                start_node = input.start_node()
+        
+        if input.target_node():
+            try:
+                target_node = int(input.target_node())
+            except (ValueError, TypeError):
+                target_node = input.target_node()
+        
+        # Create the clean Plotly map and convert to FigureWidget for Shiny
+        fig = create_plotly_map(
+            graph,
+            start=start_node,
+            target=target_node,
+            distances=state_manager.distances_df.get(),
+            current_node=state_manager.current_node.get(),
+            current_edges=state_manager.current_edges.get()
+        )
+        
+        if fig is None:
+            return None
+        
+        # Convert to FigureWidget for shinywidgets compatibility
+        try:
+            import plotly.graph_objects as go
+            return go.FigureWidget(fig)
+        except Exception as e:
+            print(f"Error creating FigureWidget: {e}")
+            return None
 
     @reactive.Effect
     @reactive.event(input.cytoscape_graph_set_start_node)
@@ -792,16 +910,6 @@ def _update_graph_based_on_selection(input):
         else:
             state_manager.graph.set(edge_list_input)
     elif input.selectize_graph() == GraphType.MAP.value:
-        address = input.map_address()
-        if address and address.strip():
-            distance = input.map_distance()
-            network_type = "drive"  # Force driving network only
-            result = generate_from_address(address, distance, network_type)
-            if isinstance(result, str):
-                state_manager.invalid_edge_list.set(True)
-                state_manager.step_explanation.set(TagList(result))
-            else:
-                state_manager.invalid_edge_list.set(False)
-                state_manager.graph.set(result)
-                # Force matplotlib visualization mode for map graphs
-                state_manager.update_visualization_mode("matplotlib")
+        # Map generation is now handled by separate update_map_graph() function
+        # to avoid triggering on every keystroke
+        pass

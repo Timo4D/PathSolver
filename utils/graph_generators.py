@@ -67,7 +67,7 @@ def generate_from_edge_list(edgelist: str):
 
 def generate_from_address(address: str, distance: int = 1000, network_type: str = "drive"):
     """
-    Generate a graph from an address using OSMnx.
+    Generate a graph from an address using OSMnx for map visualization.
     
     Args:
         address: Street address or place name
@@ -75,11 +75,32 @@ def generate_from_address(address: str, distance: int = 1000, network_type: str 
         network_type: Type of network ('drive', 'walk', 'bike')
     
     Returns:
-        NetworkX graph or error message string
+        NetworkX graph with additional metadata for map visualization or error message string
     """
+    import time
+    import signal
+    
+    def timeout_handler(signum, frame):
+        raise TimeoutError("Map generation timed out")
+    
     try:
+        print(f"Starting map generation for: {address}")
+        
+        # Set a timeout for the OSMnx request (30 seconds)
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(30)
+        
         # Get the graph from OSMnx
+        start_time = time.time()
         G = ox.graph_from_address(address, dist=distance, network_type=network_type)
+        load_time = time.time() - start_time
+        print(f"OSMnx graph loaded in {load_time:.2f} seconds")
+        
+        # Cancel the timeout
+        signal.alarm(0)
+        
+        if not G.nodes():
+            return "No road network found for this address. Try a different location."
         
         # Convert to undirected graph for Dijkstra visualization
         if G.is_directed():
@@ -111,6 +132,13 @@ def generate_from_address(address: str, distance: int = 1000, network_type: str 
             # Get the largest connected component
             largest_cc = max(nx.connected_components(G), key=len)
             G = G.subgraph(largest_cc).copy()
+            print(f"Using largest connected component with {len(G.nodes())} nodes")
+        
+        # Store original coordinates before relabeling
+        original_coords = {}
+        for node in G.nodes():
+            if 'y' in G.nodes[node] and 'x' in G.nodes[node]:
+                original_coords[node] = (G.nodes[node]['y'], G.nodes[node]['x'])  # lat, lon
         
         # Relabel nodes with simple incrementing integers for readability
         # Create mapping from original node IDs to integers
@@ -120,7 +148,25 @@ def generate_from_address(address: str, distance: int = 1000, network_type: str 
         # Relabel the graph
         G = nx.relabel_nodes(G, node_mapping)
         
+        # Add map center and bounds as graph attributes
+        if original_coords:
+            lats = [coord[0] for coord in original_coords.values()]
+            lons = [coord[1] for coord in original_coords.values()]
+            G.graph['map_center'] = (sum(lats) / len(lats), sum(lons) / len(lons))
+            G.graph['map_bounds'] = ((min(lats), min(lons)), (max(lats), max(lons)))
+        
+        print(f"Map generation completed: {len(G.nodes())} intersections, {len(G.edges())} streets")
         return G
         
+    except TimeoutError:
+        signal.alarm(0)
+        return "Map generation timed out. Please try a different address or smaller distance."
     except Exception as e:
-        return f"Error generating map: {str(e)}"
+        signal.alarm(0)
+        error_msg = str(e)
+        if "Found no graph nodes" in error_msg:
+            return "No road network found for this address. Please try a more specific address or different location."
+        elif "NetworkX graph" in error_msg:
+            return "Unable to process the road network for this location. Please try a different address."
+        else:
+            return f"Error generating map: {error_msg}"

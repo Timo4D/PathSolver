@@ -6,3 +6,6 @@ pandas
 htmltools
 osmnx
 contextily
+ipyleaflet
+shinywidgets
+plotly==5.24.1
