@@ -28,6 +28,11 @@
   "germany_example": "Deutschland-Beispiel",
   "import_edgelist": "Aus Kantenliste importieren",
   "upload_csv": "CSV-Datei hochladen",
+  "map_from_address": "Karte von Adresse",
+  
+  "enter_address": "Adresse eingeben",
+  "distance_meters": "Entfernung (Meter)",
+  
   "layout_seed": "Layout-Seed",
   
   "distances_header": "Entfernungen zwischen Knoten",

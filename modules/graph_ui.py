@@ -18,8 +18,8 @@ from modules.algorithm_logic import DijkstraStepHandler
 from modules.cytoscape.graph_component import render_cytoscape
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal_server
-from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
-from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout
+from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list, generate_from_address
+from utils.graph_utils import plot_graph, plot_map_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout
 
 
 def graph_ui():
@@ -462,18 +462,35 @@ def graph_ui_server(input, output, session):
         # Get layout seed from input or use default
         seed = input.layout_seed() if input.layout_seed() is not None else 42
         
-        # Create the plot
-        return plot_graph(
-            graph,
-            start=start_node,
-            target=target_node,
-            seed=seed,
-            distances=state_manager.distances_df.get(),
-            current_node=state_manager.current_node.get(),
-            current_edges=state_manager.current_edges.get(),
-            dark_mode=False,
-            final_step=False
-        )
+        # Check if this is a map graph (has geographic coordinates)
+        is_map_graph = (graph and len(graph.nodes()) > 0 and 
+                       all('x' in graph.nodes[node] and 'y' in graph.nodes[node] 
+                           for node in list(graph.nodes())[:min(5, len(graph.nodes()))]))
+        
+        # Create the plot using appropriate function
+        if is_map_graph:
+            return plot_map_graph(
+                graph,
+                start=start_node,
+                target=target_node,
+                distances=state_manager.distances_df.get(),
+                current_node=state_manager.current_node.get(),
+                current_edges=state_manager.current_edges.get(),
+                dark_mode=False,
+                final_step=False
+            )
+        else:
+            return plot_graph(
+                graph,
+                start=start_node,
+                target=target_node,
+                seed=seed,
+                distances=state_manager.distances_df.get(),
+                current_node=state_manager.current_node.get(),
+                current_edges=state_manager.current_edges.get(),
+                dark_mode=False,
+                final_step=False
+            )
 
     @reactive.Effect
     @reactive.event(input.cytoscape_graph_set_start_node)
@@ -774,3 +791,17 @@ def _update_graph_based_on_selection(input):
                 state_manager.graph.set(result)
         else:
             state_manager.graph.set(edge_list_input)
+    elif input.selectize_graph() == GraphType.MAP.value:
+        address = input.map_address()
+        if address and address.strip():
+            distance = input.map_distance()
+            network_type = "drive"  # Force driving network only
+            result = generate_from_address(address, distance, network_type)
+            if isinstance(result, str):
+                state_manager.invalid_edge_list.set(True)
+                state_manager.step_explanation.set(TagList(result))
+            else:
+                state_manager.invalid_edge_list.set(False)
+                state_manager.graph.set(result)
+                # Force matplotlib visualization mode for map graphs
+                state_manager.update_visualization_mode("matplotlib")

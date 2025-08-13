@@ -28,6 +28,10 @@
   "germany_example": "Germany Example",
   "import_edgelist": "Import from Edgelist",
   "upload_csv": "Upload a CSV file",
+  "map_from_address": "Map from Address",
+  
+  "enter_address": "Enter Address",
+  "distance_meters": "Distance (meters)",
   
   "distances_header": "Distances between nodes",
   "visited_nodes_header": "Visited Nodes",

@@ -28,6 +28,7 @@ class GraphType(Enum):
     KOOT_EXAMPLE_DEUTSCHLAND = "koot_example_deutschland"
     EDGE_LIST = "edge_list"
     CSV_FILE = "csv_file"
+    MAP = "map"
 
 
 def main_ui():
@@ -68,6 +69,7 @@ def graph_selection_ui():
             GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: _("germany_example"),
             GraphType.EDGE_LIST.value: _("import_edgelist"),
             GraphType.CSV_FILE.value: _("upload_csv"),
+            GraphType.MAP.value: _("map_from_address"),
         },
         selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value,
     )
@@ -380,6 +382,22 @@ def render_graph_generator_settings(graph_type):
             ui.input_file(
                 "edge_list_file",
                 ui.span(_("upload_edge_list"), ui.output_ui("edge_list_error_message")),
+            )
+        )
+    elif graph_type == GraphType.MAP.value:
+        return ui.TagList(
+            ui.input_text(
+                "map_address",
+                _("enter_address"),
+                placeholder="e.g., Times Square, New York, NY",
+            ),
+            ui.input_slider(
+                "map_distance", 
+                _("distance_meters"), 
+                min=100, 
+                max=500, 
+                value=300, 
+                step=50
             )
         )
 

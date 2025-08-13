@@ -1,6 +1,7 @@
 import random
 
 import networkx as nx
+import osmnx as ox
 
 
 def generate_random_graph(n, k, p):
@@ -62,3 +63,64 @@ def generate_from_edge_list(edgelist: str):
         return G
     else:
         return "Graph is not connected"
+
+
+def generate_from_address(address: str, distance: int = 1000, network_type: str = "drive"):
+    """
+    Generate a graph from an address using OSMnx.
+    
+    Args:
+        address: Street address or place name
+        distance: Distance in meters from the address center
+        network_type: Type of network ('drive', 'walk', 'bike')
+    
+    Returns:
+        NetworkX graph or error message string
+    """
+    try:
+        # Get the graph from OSMnx
+        G = ox.graph_from_address(address, dist=distance, network_type=network_type)
+        
+        # Convert to undirected graph for Dijkstra visualization
+        if G.is_directed():
+            G = ox.convert.to_undirected(G)
+        
+        # Convert MultiGraph to simple Graph to avoid key issues
+        if isinstance(G, nx.MultiGraph):
+            # Create a new simple graph
+            simple_G = nx.Graph()
+            for u, v, data in G.edges(data=True):
+                if not simple_G.has_edge(u, v):
+                    # Use the first edge's data
+                    weight = int(data.get('length', 100))
+                    simple_G.add_edge(u, v, weight=weight)
+            
+            # Copy node attributes including coordinates
+            for node, data in G.nodes(data=True):
+                simple_G.add_node(node, **data)
+            
+            G = simple_G
+        else:
+            # Ensure edge weights are based on length (distance)
+            for u, v, data in G.edges(data=True):
+                weight = int(data.get('length', 100))
+                G[u][v]['weight'] = weight
+        
+        # Check if graph is connected
+        if not nx.is_connected(G):
+            # Get the largest connected component
+            largest_cc = max(nx.connected_components(G), key=len)
+            G = G.subgraph(largest_cc).copy()
+        
+        # Relabel nodes with simple incrementing integers for readability
+        # Create mapping from original node IDs to integers
+        original_nodes = list(G.nodes())
+        node_mapping = {original_node: i for i, original_node in enumerate(original_nodes)}
+        
+        # Relabel the graph
+        G = nx.relabel_nodes(G, node_mapping)
+        
+        return G
+        
+    except Exception as e:
+        return f"Error generating map: {str(e)}"

@@ -2,6 +2,13 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from networkx.classes import Graph
 import math
+try:
+    import contextily as ctx
+    import geopandas as gpd
+    from shapely.geometry import Point
+    CONTEXTILY_AVAILABLE = True
+except ImportError:
+    CONTEXTILY_AVAILABLE = False
 
 
 
@@ -71,6 +78,109 @@ def plot_graph(G, start, target, seed, distances=None, current_node=None, curren
         # Draw weights
         edge_labels = nx.get_edge_attributes(G, 'weight')
         nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    plt.axis('off')
+
+
+def plot_map_graph(G, start, target, distances=None, current_node=None, current_edges=None, dark_mode=False, final_step=False):
+    """Plot graph with geographic coordinates and map background."""
+    width: int = 3
+    if current_edges is None or not isinstance(current_edges, (list, tuple)):
+        current_edges = []
+    if not G:
+        return None
+
+    current_edges_set = {(u, v) for u, v in current_edges} | {(v, u) for u, v in current_edges}
+
+    # Check if nodes have geographic coordinates
+    has_geo_coords = all('x' in G.nodes[node] and 'y' in G.nodes[node] for node in G.nodes())
+    
+    if not has_geo_coords or not CONTEXTILY_AVAILABLE:
+        # Fallback to regular spring layout if no geo coordinates or contextily unavailable
+        return plot_graph(G, start, target, seed=42, distances=distances, 
+                         current_node=current_node, current_edges=current_edges, 
+                         dark_mode=dark_mode, final_step=final_step)
+    
+    # Use geographic coordinates
+    pos = {node: (G.nodes[node]['x'], G.nodes[node]['y']) for node in G.nodes()}
+    
+    # Create figure and axis
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    if dark_mode == "dark":
+        plt.style.use('dark_background')
+        default_color = 'white'
+        map_style = ctx.providers.CartoDB.DarkMatter
+    else:
+        plt.style.use('default')
+        default_color = 'black'
+        map_style = ctx.providers.OpenStreetMap.Mapnik
+
+    # Draw Node Color
+    node_color_map = []
+    for node in G:
+        if node == start:
+            node_color_map.append('tab:green')
+        elif node == target:
+            node_color_map.append('tab:red')
+        elif node == current_node:
+            node_color_map.append('tab:pink')
+        else:
+            node_color_map.append('tab:blue')
+
+    # Draw edges first (so they appear behind nodes)
+    if current_edges:
+        edge_color_map = ['tab:red' if (u, v) in current_edges_set else default_color
+                          for u, v in G.edges]
+        nx.draw_networkx_edges(G, pos, edge_color=edge_color_map, width=width, ax=ax)
+    else:
+        nx.draw_networkx_edges(G, pos, edge_color=default_color, width=width, ax=ax)
+
+    # Draw nodes
+    nx.draw_networkx_nodes(G, pos, node_color=node_color_map, node_size=400, ax=ax)
+    nx.draw_networkx_labels(G, pos, ax=ax)
+
+    # Draw custom labels if available
+    if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
+        labels = dict(sorted(nx.get_node_attributes(G, "label").items()))
+        # Offset labels below nodes (adjust y coordinate)
+        label_pos = {node: (coords[0], coords[1] - 0.0001) for node, coords in pos.items()}
+        nx.draw_networkx_labels(G, label_pos, labels, font_color=default_color, ax=ax)
+
+    # Draw Distances
+    if distances is not None and not distances["Cost"].empty:
+        distance_labels = distances["Cost"].replace(float('inf'), 'ꝏ').apply(
+            lambda x: int(x) if isinstance(x, float) else x)
+
+        # Offset labels above nodes (adjust y coordinate)
+        label_pos = {node: (coords[0], coords[1] + 0.0001) for node, coords in pos.items()}
+        distance_labels = {node: label for node, label in distance_labels.items() if node in pos}
+        nx.draw_networkx_labels(G, label_pos, distance_labels, font_color=default_color, ax=ax)
+
+    if not final_step:
+        # Draw weights
+        edge_labels = nx.get_edge_attributes(G, 'weight')
+        nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels, ax=ax)
+
+    # Add map background
+    try:
+        # Get bounds of the graph
+        x_coords = [pos[node][0] for node in pos]
+        y_coords = [pos[node][1] for node in pos]
+        
+        # Add some padding
+        x_margin = (max(x_coords) - min(x_coords)) * 0.1
+        y_margin = (max(y_coords) - min(y_coords)) * 0.1
+        
+        ax.set_xlim(min(x_coords) - x_margin, max(x_coords) + x_margin)
+        ax.set_ylim(min(y_coords) - y_margin, max(y_coords) + y_margin)
+        
+        # Add basemap
+        ctx.add_basemap(ax, crs='EPSG:4326', source=map_style, alpha=0.7)
+        
+    except Exception as e:
+        print(f"Warning: Could not add basemap: {e}")
+    
+    ax.set_aspect('equal')
     plt.axis('off')
 
 
