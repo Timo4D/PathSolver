@@ -60,6 +60,10 @@ def graph_ui_server(input, output, session):
         if not state_manager.game_enabled():
             return ui.div()
         
+        # Disable prediction game for OSM location graphs
+        if input.selectize_graph() == GraphType.OSM_LOCATION.value:
+            return ui.div()
+        
         # Check if game should be active (forced or user enabled)
         game_active = state_manager.force_game_mode() or \
                      (input.game_enabled() if input.game_enabled() is not None else False)
@@ -214,9 +218,13 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
-    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.current_language)
+    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.current_language, input.selectize_graph)
     def dynamic_game_toggle():
-        """Show/hide game toggle based on settings."""
+        """Show/hide game toggle based on settings and graph type."""
+        # Hide game toggle for OSM location graphs
+        if input.selectize_graph() == GraphType.OSM_LOCATION.value:
+            return ui.div()
+        
         from modules.ui_components import prediction_game_toggle_ui
         return prediction_game_toggle_ui()
 
@@ -230,13 +238,17 @@ def graph_ui_server(input, output, session):
     
     @output
     @render.ui
-    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.force_game_difficulty, input.game_enabled, state_manager.current_language)
+    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.force_game_difficulty, input.game_enabled, state_manager.current_language, input.selectize_graph)
     def game_difficulty_selector():
-        """Show/hide difficulty selector based on settings and game state."""
+        """Show/hide difficulty selector based on settings, game state, and graph type."""
         from modules.ui_components import game_difficulty_selector_ui
         
         # Only show if game feature is enabled in settings
         if not state_manager.game_enabled():
+            return ui.div()
+        
+        # Hide difficulty selector for OSM location graphs
+        if input.selectize_graph() == GraphType.OSM_LOCATION.value:
             return ui.div()
         
         # Check if game should be active (forced or user enabled)

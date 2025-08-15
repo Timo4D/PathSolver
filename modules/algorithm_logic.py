@@ -247,8 +247,10 @@ class DijkstraStepHandler:
             min_cost_node = min_cost_lookup_value
         
         # Check if prediction game is enabled (either forced or user enabled) and we should wait for user prediction
-        game_active = (self.state.game_enabled.get() and self.state.force_game_mode.get()) or \
-                     (self.state.game_enabled.get() and input.game_enabled() if input.game_enabled() is not None else False)
+        # Also disable prediction game for OSM location graphs
+        is_osm_graph = input.selectize_graph() == "osm_location"
+        game_active = not is_osm_graph and ((self.state.game_enabled.get() and self.state.force_game_mode.get()) or \
+                     (self.state.game_enabled.get() and input.game_enabled() if input.game_enabled() is not None else False))
         
         if game_active and not self.state.waiting_for_prediction.get():
             # Get list of candidate nodes (unvisited nodes with finite costs)
