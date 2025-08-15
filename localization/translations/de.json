@@ -28,6 +28,7 @@
   "germany_example": "Deutschland-Beispiel",
   "import_edgelist": "Aus Kantenliste importieren",
   "upload_csv": "CSV-Datei hochladen",
+  "osm_location": "Straßennetz von Standort",
   "layout_seed": "Layout-Seed",
   
   "distances_header": "Entfernungen zwischen Knoten",
@@ -42,6 +43,9 @@
   "edge_list": "Kantenliste",
   "upload_edge_list": "Kantenliste hochladen",
   "invalid_input_tooltip": "Ihre Eingabe ist ungültig",
+  "location_input": "Standort",
+  "location_placeholder": "z.B., Times Square, New York, NY, USA",
+  "distance_radius": "Entfernungsradius (Meter)",
   
   "game_difficulty_forced": "🎯 Spielschwierigkeit (Von Dozent festgelegt)",
   "game_difficulty_forced_notice": "Die Schwierigkeitsstufe wurde von Ihrem Dozenten festgelegt und kann nicht geändert werden.",

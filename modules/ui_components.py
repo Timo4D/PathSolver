@@ -28,6 +28,7 @@ class GraphType(Enum):
     KOOT_EXAMPLE_DEUTSCHLAND = "koot_example_deutschland"
     EDGE_LIST = "edge_list"
     CSV_FILE = "csv_file"
+    OSM_LOCATION = "osm_location"
 
 
 def main_ui():
@@ -68,6 +69,7 @@ def graph_selection_ui():
             GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: _("germany_example"),
             GraphType.EDGE_LIST.value: _("import_edgelist"),
             GraphType.CSV_FILE.value: _("upload_csv"),
+            GraphType.OSM_LOCATION.value: _("osm_location"),
         },
         selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value,
     )
@@ -380,6 +382,23 @@ def render_graph_generator_settings(graph_type):
             ui.input_file(
                 "edge_list_file",
                 ui.span(_("upload_edge_list"), ui.output_ui("edge_list_error_message")),
+            )
+        )
+    elif graph_type == GraphType.OSM_LOCATION.value:
+        return ui.TagList(
+            ui.input_text(
+                "osm_location_input",
+                _("location_input"),
+                value="",
+                placeholder=_("location_placeholder")
+            ),
+            ui.input_numeric(
+                "osm_distance_input",
+                _("distance_radius"),
+                value=300,
+                min=100,
+                max=500,
+                step=50
             )
         )
 

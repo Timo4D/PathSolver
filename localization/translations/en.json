@@ -28,6 +28,7 @@
   "germany_example": "Germany Example",
   "import_edgelist": "Import from Edgelist",
   "upload_csv": "Upload a CSV file",
+  "osm_location": "Street Network from Location",
   
   "distances_header": "Distances between nodes",
   "visited_nodes_header": "Visited Nodes",
@@ -41,6 +42,9 @@
   "edge_list": "Edge List",
   "upload_edge_list": "Upload an edge list",
   "invalid_input_tooltip": "Your input is invalid",
+  "location_input": "Location",
+  "location_placeholder": "e.g., Times Square, New York, NY, USA",
+  "distance_radius": "Distance Radius (meters)",
   
   "game_difficulty_forced": "🎯 Game Difficulty (Forced by Instructor)",
   "game_difficulty_forced_notice": "The difficulty level has been set by your instructor and cannot be changed.",

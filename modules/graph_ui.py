@@ -18,8 +18,9 @@ from modules.algorithm_logic import DijkstraStepHandler
 from modules.cytoscape.graph_component import render_cytoscape
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal_server
-from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
+from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list, generate_from_osm_location
 from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout
+from utils.osm_visualization import create_osm_plotly_figure
 
 
 def graph_ui():
@@ -282,9 +283,20 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
-    @reactive.event(state_manager.visualization_mode)
+    @reactive.event(state_manager.visualization_mode, state_manager.graph)
     def graph_display():
-        """Conditionally render either cytoscape or matplotlib graph."""
+        """Conditionally render either cytoscape, matplotlib, or plotly map graph."""
+        graph = state_manager.graph.get()
+        
+        # If it's an OSM graph, show Plotly map
+        if graph and hasattr(graph, 'graph') and 'location' in graph.graph:
+            return ui.div(
+                ui.output_ui("osm_map_graph"),
+                key="osm-map",
+                style="height: 600px;"
+            )
+        
+        # Otherwise use normal visualization modes
         mode = state_manager.visualization_mode()
         if mode == "cytoscape":
             from modules.cytoscape.graph_component import output_cytoscape_graph
@@ -474,6 +486,48 @@ def graph_ui_server(input, output, session):
             dark_mode=False,
             final_step=False
         )
+
+    @output
+    @render.ui
+    @reactive.event(
+        state_manager.graph, input.start_node, input.target_node, 
+        state_manager.current_node, state_manager.current_edges, state_manager.distances_df
+    )
+    def osm_map_graph():
+        """Render OSM graph using Plotly with map background."""
+        graph = state_manager.graph.get()
+        if not graph or not (hasattr(graph, 'graph') and 'location' in graph.graph):
+            return ui.div("No OSM graph data available")
+            
+        start_node = None
+        target_node = None
+        
+        # Parse start and target nodes
+        if input.start_node():
+            try:
+                start_node = int(input.start_node())
+            except (ValueError, TypeError):
+                start_node = input.start_node()
+        
+        if input.target_node():
+            try:
+                target_node = int(input.target_node())
+            except (ValueError, TypeError):
+                target_node = input.target_node()
+        
+        # Create the Plotly figure with map background
+        fig = create_osm_plotly_figure(
+            graph,
+            start_node=start_node,
+            target_node=target_node,
+            current_node=state_manager.current_node.get(),
+            current_edges=state_manager.current_edges.get(),
+            distances_df=state_manager.distances_df.get()
+        )
+        
+        # Return Plotly figure as HTML
+        from htmltools import HTML
+        return HTML(fig.to_html(include_plotlyjs=True, div_id="osm-map-plot"))
 
     @reactive.Effect
     @reactive.event(input.cytoscape_graph_set_start_node)
@@ -774,3 +828,16 @@ def _update_graph_based_on_selection(input):
                 state_manager.graph.set(result)
         else:
             state_manager.graph.set(edge_list_input)
+    elif input.selectize_graph() == GraphType.OSM_LOCATION.value:
+        location = input.osm_location_input()
+        distance = input.osm_distance_input()
+        if location and location.strip():
+            result = generate_from_osm_location(location.strip(), distance)
+            if isinstance(result, str):
+                state_manager.invalid_edge_list.set(True)
+                state_manager.step_explanation.set(TagList(result))
+            else:
+                state_manager.invalid_edge_list.set(False)
+                state_manager.graph.set(result)
+        else:
+            state_manager.step_explanation.set(TagList("Please enter a location"))

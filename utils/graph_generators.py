@@ -1,6 +1,7 @@
 import random
 
 import networkx as nx
+import osmnx as ox
 
 
 def generate_random_graph(n, k, p):
@@ -62,3 +63,63 @@ def generate_from_edge_list(edgelist: str):
         return G
     else:
         return "Graph is not connected"
+
+
+def generate_from_osm_location(location: str, distance: int):
+    """
+    Generate a graph from OpenStreetMap data for a given location and distance radius.
+    
+    Args:
+        location (str): Location name or address
+        distance (int): Distance radius in meters (100-500)
+    
+    Returns:
+        networkx.Graph: Connected graph with edge weights as road lengths, or error string
+    """
+    try:
+        # Validate distance parameter
+        if not (100 <= distance <= 500):
+            return "Distance must be between 100 and 500 meters"
+        
+        # Download street network from OSM
+        G = ox.graph_from_address(location, dist=distance, network_type='drive')
+        
+        # Convert to undirected graph for Dijkstra algorithm compatibility
+        G_undirected = G.to_undirected()
+        
+        # Ensure we have a connected component
+        if not nx.is_connected(G_undirected):
+            # Get the largest connected component
+            largest_cc = max(nx.connected_components(G_undirected), key=len)
+            G_undirected = G_undirected.subgraph(largest_cc).copy()
+        
+        # Create simplified graph with integer node IDs and length-based weights
+        G_simple = nx.Graph()
+        
+        # Map original node IDs to simple integer IDs
+        node_mapping = {node: i for i, node in enumerate(G_undirected.nodes())}
+        
+        # Add nodes with coordinates
+        for original_id, simple_id in node_mapping.items():
+            node_data = G_undirected.nodes[original_id]
+            G_simple.add_node(simple_id, 
+                             x=node_data.get('x', 0), 
+                             y=node_data.get('y', 0),
+                             lat=node_data.get('y', 0),
+                             lon=node_data.get('x', 0))
+        
+        # Add edges with length as weight
+        for u, v, data in G_undirected.edges(data=True):
+            weight = data.get('length', 100)  # Use length as weight, default 100
+            # Round weight to integer for better visualization
+            weight = max(1, int(round(weight)))  
+            G_simple.add_edge(node_mapping[u], node_mapping[v], weight=weight)
+        
+        # Store the original location and distance for potential map visualization
+        G_simple.graph['location'] = location
+        G_simple.graph['distance'] = distance
+        
+        return G_simple
+        
+    except Exception as e:
+        return f"Error fetching location data: {str(e)}"
