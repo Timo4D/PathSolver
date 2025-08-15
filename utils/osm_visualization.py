@@ -128,6 +128,46 @@ def create_osm_plotly_figure(
             hoverinfo="skip",
         )
     )
+    
+    # Add edge weight labels at the midpoint of each edge
+    weight_lats = []
+    weight_lons = []
+    weight_texts = []
+    
+    for u, v, data in graph.edges(data=True):
+        u_data = graph.nodes[u]
+        v_data = graph.nodes[v]
+        
+        u_lat = u_data.get("lat", u_data.get("y", 0))
+        u_lon = u_data.get("lon", u_data.get("x", 0))
+        v_lat = v_data.get("lat", v_data.get("y", 0))
+        v_lon = v_data.get("lon", v_data.get("x", 0))
+        
+        # Calculate midpoint
+        mid_lat = (u_lat + v_lat) / 2
+        mid_lon = (u_lon + v_lon) / 2
+        
+        weight = data.get("weight", 1)
+        
+        weight_lats.append(mid_lat)
+        weight_lons.append(mid_lon)
+        weight_texts.append(str(round(weight, 1)))
+    
+    # Add weight labels
+    if weight_lats:
+        fig.add_trace(
+            go.Scattermapbox(
+                lat=weight_lats,
+                lon=weight_lons,
+                mode="text",
+                text=weight_texts,
+                textfont=dict(size=20, color="black"),
+                textposition="middle center",
+                name="Weights",
+                hoverinfo="skip",
+                showlegend=False,
+            )
+        )
 
     # Add highlighted current edges if any
     if current_edges:
