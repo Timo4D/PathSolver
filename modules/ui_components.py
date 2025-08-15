@@ -389,15 +389,15 @@ def render_graph_generator_settings(graph_type):
             ui.input_text(
                 "osm_location_input",
                 _("location_input"),
-                value="",
+                value="Aalen, Beethovenstraße 1",
                 placeholder=_("location_placeholder")
             ),
-            ui.input_numeric(
+            ui.input_slider(
                 "osm_distance_input",
                 _("distance_radius"),
-                value=300,
                 min=100,
                 max=500,
+                value=300,
                 step=50
             )
         )

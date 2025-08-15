@@ -49,8 +49,8 @@ if (Shiny) {
               style: {
                 "background-color": "#4CAF50",
                 color: "white",
-                width: 60,
-                height: 60
+                width: 80,
+                height: 80
               },
             },
           ]);
@@ -96,8 +96,8 @@ if (Shiny) {
               style: {
                 "background-color": "#4CAF50",
                 color: "white",
-                width: 60,
-                height: 60
+                width: 80,
+                height: 80
               },
             },
           ]);
@@ -122,8 +122,8 @@ if (Shiny) {
               style: {
                 "background-color": "#4CAF50",
                 color: "white",
-                width: 60,
-                height: 60
+                width: 80,
+                height: 80
               },
             },
           ],
