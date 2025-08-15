@@ -516,13 +516,13 @@ def graph_ui_server(input, output, session):
             target_node = None
             
             # Parse start and target nodes
-            if input.start_node():
+            if input.start_node() is not None and input.start_node() != "":
                 try:
                     start_node = int(input.start_node())
                 except (ValueError, TypeError):
                     start_node = input.start_node()
             
-            if input.target_node():
+            if input.target_node() is not None and input.target_node() != "":
                 try:
                     target_node = int(input.target_node())
                 except (ValueError, TypeError):

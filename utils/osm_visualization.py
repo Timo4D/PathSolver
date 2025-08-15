@@ -4,6 +4,7 @@ import networkx as nx
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from constants import COLOR_START_NODE, COLOR_TARGET_NODE
 
 
 def create_osm_plotly_figure(
@@ -71,11 +72,17 @@ def create_osm_plotly_figure(
         node_texts.append(text)
 
         # Color nodes based on their role
-        if node_id == start_node:
-            node_colors.append("green")
-        elif node_id == target_node:
-            node_colors.append("red")
-        elif node_id == current_node:
+        # Ensure type consistency for comparison by converting both to strings
+        node_id_str = str(node_id)
+        start_node_str = str(start_node) if start_node is not None else None
+        target_node_str = str(target_node) if target_node is not None else None
+        current_node_str = str(current_node) if current_node is not None else None
+        
+        if start_node_str is not None and node_id_str == start_node_str:
+            node_colors.append(COLOR_START_NODE)
+        elif target_node_str is not None and node_id_str == target_node_str:
+            node_colors.append(COLOR_TARGET_NODE)
+        elif current_node_str is not None and node_id_str == current_node_str:
             node_colors.append("orange")
         else:
             node_colors.append("blue")
