@@ -495,39 +495,138 @@ def graph_ui_server(input, output, session):
     )
     def osm_map_graph():
         """Render OSM graph using Plotly with map background."""
-        graph = state_manager.graph.get()
-        if not graph or not (hasattr(graph, 'graph') and 'location' in graph.graph):
-            return ui.div("No OSM graph data available")
+        try:
+            graph = state_manager.graph.get()
+            if not graph or not (hasattr(graph, 'graph') and 'location' in graph.graph):
+                return ui.div("No OSM graph data available")
+                
+            start_node = None
+            target_node = None
             
-        start_node = None
-        target_node = None
+            # Parse start and target nodes
+            if input.start_node():
+                try:
+                    start_node = int(input.start_node())
+                except (ValueError, TypeError):
+                    start_node = input.start_node()
+            
+            if input.target_node():
+                try:
+                    target_node = int(input.target_node())
+                except (ValueError, TypeError):
+                    target_node = input.target_node()
+            
+            # Get viewport state for preserving view
+            preserve_view = state_manager.map_view_initialized.get()
+            center_lat = state_manager.map_center_lat.get()
+            center_lon = state_manager.map_center_lon.get()
+            zoom = state_manager.map_zoom.get()
+            
+            # Create the Plotly figure with map background
+            fig = create_osm_plotly_figure(
+                graph,
+                start_node=start_node,
+                target_node=target_node,
+                current_node=state_manager.current_node.get(),
+                current_edges=state_manager.current_edges.get(),
+                distances_df=state_manager.distances_df.get(),
+                center_lat=center_lat,
+                center_lon=center_lon,
+                zoom=zoom,
+                preserve_view=preserve_view
+            )
+            
+            # Return Plotly figure as HTML with scroll zoom enabled
+            from htmltools import HTML
+            
+            # Configuration to enable scroll wheel zoom and other interactive features
+            config = {
+                'scrollZoom': True,
+                'doubleClick': 'reset+autosize',
+                'showTips': True,
+                'displayModeBar': True,
+                'displaylogo': False,
+                'modeBarButtonsToRemove': ['lasso2d', 'select2d'],
+                'toImageButtonOptions': {
+                    'format': 'png',
+                    'filename': 'street_network_map',
+                    'height': 600,
+                    'width': 800,
+                    'scale': 1
+                }
+            }
+            
+            # Initialize map viewport state if not already done
+            is_first_load = not state_manager.map_view_initialized.get()
+            if is_first_load:
+                # Extract the center and zoom from the figure for future reference
+                mapbox_config = fig.layout.mapbox
+                state_manager.map_center_lat.set(mapbox_config.center.lat)
+                state_manager.map_center_lon.set(mapbox_config.center.lon)
+                state_manager.map_zoom.set(mapbox_config.zoom)
+                state_manager.map_view_initialized.set(True)
+            
+            # Generate the basic HTML
+            plotly_html = fig.to_html(
+                include_plotlyjs=True, 
+                div_id="osm-map-plot",
+                config=config
+            )
+            
+            # Add simplified JavaScript for viewport preservation
+            if preserve_view and not is_first_load:
+                viewport_js = f"""
+                <script>
+                setTimeout(function() {{
+                    const plotDiv = document.getElementById('osm-map-plot');
+                    if (plotDiv && typeof Plotly !== 'undefined' && window.osmMapState) {{
+                        Plotly.relayout(plotDiv, {{
+                            'mapbox.center': window.osmMapState.center,
+                            'mapbox.zoom': window.osmMapState.zoom
+                        }}).catch(function(err) {{
+                            console.log('Viewport restore skipped:', err);
+                        }});
+                    }}
+                    
+                    // Set up listener for future changes
+                    if (plotDiv && plotDiv.on) {{
+                        plotDiv.on('plotly_relayout', function(eventData) {{
+                            if (eventData['mapbox.center'] || eventData['mapbox.zoom']) {{
+                                window.osmMapState = {{
+                                    center: eventData['mapbox.center'] || plotDiv.layout.mapbox.center,
+                                    zoom: eventData['mapbox.zoom'] || plotDiv.layout.mapbox.zoom
+                                }};
+                            }}
+                        }});
+                    }}
+                }}, 300);
+                </script>
+                """
+            else:
+                # First load - just set up the listener
+                viewport_js = """
+                <script>
+                setTimeout(function() {
+                    const plotDiv = document.getElementById('osm-map-plot');
+                    if (plotDiv && plotDiv.on) {
+                        plotDiv.on('plotly_relayout', function(eventData) {
+                            if (eventData['mapbox.center'] || eventData['mapbox.zoom']) {
+                                window.osmMapState = {
+                                    center: eventData['mapbox.center'] || plotDiv.layout.mapbox.center,
+                                    zoom: eventData['mapbox.zoom'] || plotDiv.layout.mapbox.zoom
+                                };
+                            }
+                        });
+                    }
+                }, 300);
+                </script>
+                """
         
-        # Parse start and target nodes
-        if input.start_node():
-            try:
-                start_node = int(input.start_node())
-            except (ValueError, TypeError):
-                start_node = input.start_node()
-        
-        if input.target_node():
-            try:
-                target_node = int(input.target_node())
-            except (ValueError, TypeError):
-                target_node = input.target_node()
-        
-        # Create the Plotly figure with map background
-        fig = create_osm_plotly_figure(
-            graph,
-            start_node=start_node,
-            target_node=target_node,
-            current_node=state_manager.current_node.get(),
-            current_edges=state_manager.current_edges.get(),
-            distances_df=state_manager.distances_df.get()
-        )
-        
-        # Return Plotly figure as HTML
-        from htmltools import HTML
-        return HTML(fig.to_html(include_plotlyjs=True, div_id="osm-map-plot"))
+            return HTML(plotly_html + viewport_js)
+            
+        except Exception as e:
+            print(f"Error rendering OSM map: {e}")
+            return ui.div(f"Error rendering map: {str(e)}")
 
     @reactive.Effect
     @reactive.event(input.cytoscape_graph_set_start_node)
@@ -838,6 +937,8 @@ def _update_graph_based_on_selection(input):
                 state_manager.step_explanation.set(TagList(result))
             else:
                 state_manager.invalid_edge_list.set(False)
+                # Reset map viewport when new OSM graph is loaded
+                state_manager.reset_map_viewport()
                 state_manager.graph.set(result)
         else:
             state_manager.step_explanation.set(TagList("Please enter a location"))

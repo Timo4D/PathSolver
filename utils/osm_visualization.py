@@ -7,7 +7,8 @@ import pandas as pd
 
 
 def create_osm_plotly_figure(graph, start_node=None, target_node=None, current_node=None, 
-                            current_edges=None, distances_df=None):
+                            current_edges=None, distances_df=None, 
+                            center_lat=None, center_lon=None, zoom=None, preserve_view=False):
     """
     Create a Plotly figure with the OSM graph overlaid on a map.
     
@@ -157,28 +158,41 @@ def create_osm_plotly_figure(graph, start_node=None, target_node=None, current_n
     ))
     
     # Calculate center and zoom for the map
-    if node_lats and node_lons:
-        center_lat = sum(node_lats) / len(node_lats)
-        center_lon = sum(node_lons) / len(node_lons)
-        
-        # Calculate appropriate zoom level based on data spread
-        lat_range = max(node_lats) - min(node_lats)
-        lon_range = max(node_lons) - min(node_lons)
-        zoom = max(0, min(20, 15 - max(lat_range, lon_range) * 100))
+    if preserve_view and center_lat is not None and center_lon is not None and zoom is not None:
+        # Use the preserved viewport settings
+        pass  # center_lat, center_lon, zoom are already set
     else:
-        center_lat, center_lon, zoom = 0, 0, 1
+        # Calculate defaults based on graph data
+        if node_lats and node_lons:
+            center_lat = sum(node_lats) / len(node_lats)
+            center_lon = sum(node_lons) / len(node_lons)
+            
+            # Calculate appropriate zoom level based on data spread
+            lat_range = max(node_lats) - min(node_lats)
+            lon_range = max(node_lons) - min(node_lons)
+            zoom = max(0, min(20, 15 - max(lat_range, lon_range) * 100))
+        else:
+            center_lat, center_lon, zoom = 0, 0, 1
     
     # Update layout with map
-    fig.update_layout(
-        title=f"Street Network: {graph.graph.get('location', 'Unknown Location')}",
-        mapbox=dict(
+    layout_config = {
+        'title': f"Street Network: {graph.graph.get('location', 'Unknown Location')}",
+        'mapbox': dict(
             style='open-street-map',
             center=dict(lat=center_lat, lon=center_lon),
             zoom=zoom
         ),
-        margin=dict(l=0, r=0, t=30, b=0),
-        height=600,
-        showlegend=True
-    )
+        'margin': dict(l=0, r=0, t=30, b=0),
+        'height': 600,
+        'showlegend': True
+    }
+    
+    # Add uirevision to preserve view when preserve_view is True
+    if preserve_view:
+        layout_config['uirevision'] = 'map-view'
+    
+    fig.update_layout(**layout_config)
+    
+    # Note: Plotly config will be applied when converting to HTML
     
     return fig

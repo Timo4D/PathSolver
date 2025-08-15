@@ -69,6 +69,12 @@ class StateManager:
         # Initialize i18n with the configured language immediately (non-reactively)
         set_language(default_language)
         self._language_initialized = True
+        
+        # Map viewport state for OSM visualizations
+        self.map_center_lat = reactive.Value(None)
+        self.map_center_lon = reactive.Value(None)
+        self.map_zoom = reactive.Value(None)
+        self.map_view_initialized = reactive.Value(False)
     
     def save_state(self):
         """Save current state for undo functionality."""
@@ -120,6 +126,13 @@ class StateManager:
             
             # Reset prediction game state when algorithm is reset
             self.reset_game_state()
+    
+    def reset_map_viewport(self):
+        """Reset map viewport state when a new graph is loaded."""
+        self.map_center_lat.set(None)
+        self.map_center_lon.set(None)
+        self.map_zoom.set(None)
+        self.map_view_initialized.set(False)
     
     def reset_game_state(self):
         """Reset prediction game state."""
