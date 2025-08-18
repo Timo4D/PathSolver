@@ -117,11 +117,20 @@ def graph_ui_server(input, output, session):
     
     @output
     @render.ui
-    @reactive.event(state_manager.current_language)
+    @reactive.event(state_manager.current_language, state_manager.map_enabled)
     def dynamic_graph_selection():
-        """Dynamic graph selection UI that updates with language."""
-        from modules.ui_components import graph_selection_ui
-        return graph_selection_ui()
+        """Dynamic graph selection UI that updates with language and map feature setting."""
+        from modules.ui_components import create_graph_selection_options, GraphType
+        
+        map_enabled = state_manager.map_enabled.get()
+        options = create_graph_selection_options(map_enabled)
+        
+        return ui.input_selectize(
+            "selectize_graph",
+            _("select_graph"),
+            options,
+            selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value,
+        )
     
     @output
     @render.ui

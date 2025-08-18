@@ -60,6 +60,7 @@ class StateManager:
         self.graph_font_size = reactive.Value(self.config["settings"].get("graph_font_size", 16))  # Default 16px
         self.solution_quiz_enabled = reactive.Value(self.config["settings"].get("solution_quiz_enabled", True))
         self.force_solution_quiz = reactive.Value(self.config["settings"].get("force_solution_quiz", False))
+        self.map_enabled = reactive.Value(self.config["settings"].get("map_feature_enabled", True))
         self.settings_unlocked = reactive.Value(not self.config["settings"]["password_protected"])
         self.admin_password = self.config["settings"]["admin_password"]
         
@@ -242,6 +243,10 @@ class StateManager:
     def update_force_solution_quiz(self, enabled):
         """Update force solution quiz setting."""
         self.force_solution_quiz.set(enabled)
+    
+    def update_map_setting(self, enabled):
+        """Update map feature setting."""
+        self.map_enabled.set(enabled)
     
     def _ensure_language_initialized(self):
         """Ensure language is initialized in reactive context."""

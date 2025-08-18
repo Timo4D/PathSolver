@@ -61,18 +61,21 @@ def main_ui():
 
 def graph_selection_ui():
     """Graph selection dropdown UI."""
-    return ui.input_selectize(
-        "selectize_graph",
-        _("select_graph"),
-        {
-            GraphType.RANDOM_GRAPH.value: _("random_graph"),
-            GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: _("germany_example"),
-            GraphType.EDGE_LIST.value: _("import_edgelist"),
-            GraphType.CSV_FILE.value: _("upload_csv"),
-            GraphType.OSM_LOCATION.value: _("osm_location"),
-        },
-        selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value,
-    )
+    return ui.output_ui("dynamic_graph_selection")
+
+def create_graph_selection_options(map_enabled=True):
+    """Create graph selection options dictionary with optional map feature."""
+    options = {
+        GraphType.RANDOM_GRAPH.value: _("random_graph"),
+        GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: _("germany_example"),
+        GraphType.EDGE_LIST.value: _("import_edgelist"),
+        GraphType.CSV_FILE.value: _("upload_csv"),
+    }
+    
+    if map_enabled:
+        options[GraphType.OSM_LOCATION.value] = _("osm_location")
+    
+    return options
 
 
 def distances_ui():

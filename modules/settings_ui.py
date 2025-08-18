@@ -18,7 +18,7 @@ def settings_ui_server(input, output, session):
     
     @output
     @render.ui
-    @reactive.event(state_manager.settings_unlocked, state_manager.force_game_difficulty, state_manager.game_enabled, state_manager.force_game_mode, state_manager.graph_font_size, state_manager.current_language, state_manager.solution_quiz_enabled, state_manager.force_solution_quiz)
+    @reactive.event(state_manager.settings_unlocked, state_manager.force_game_difficulty, state_manager.game_enabled, state_manager.force_game_mode, state_manager.graph_font_size, state_manager.current_language, state_manager.solution_quiz_enabled, state_manager.force_solution_quiz, state_manager.map_enabled)
     def settings_content():
         """Render settings content based on unlock status."""
         
@@ -150,6 +150,21 @@ def settings_ui_server(input, output, session):
                     class_="card p-3 mb-4"
                 ),
                 
+                # Map Feature Toggle
+                ui.div(
+                    ui.h4("Map Feature", class_="mb-3"),
+                    ui.input_switch(
+                        "settings_map_enabled",
+                        "Enable OpenStreetMap Graph Generation",
+                        value=state_manager.map_enabled()
+                    ),
+                    ui.p(
+                        "When enabled, users can generate graphs from real-world OpenStreetMap data by entering locations.",
+                        class_="text-muted small"
+                    ),
+                    class_="card p-3 mb-4"
+                ),
+                
                 # Visualization Mode Toggle
                 ui.div(
                     ui.h4("Graph Visualization", class_="mb-3"),
@@ -204,6 +219,7 @@ def settings_ui_server(input, output, session):
         force_difficulty_status = force_difficulty.title() if force_difficulty else "User Choice"
         quiz_status = "Enabled" if state_manager.solution_quiz_enabled() else "Disabled"
         force_quiz_status = "Yes" if state_manager.force_solution_quiz() else "No"
+        map_status = "Enabled" if state_manager.map_enabled() else "Disabled"
         viz_mode = "Interactive (Cytoscape.js)" if state_manager.visualization_mode() == "cytoscape" else "Static (Matplotlib)"
         font_size = state_manager.graph_font_size()
         
@@ -213,6 +229,7 @@ def settings_ui_server(input, output, session):
             ui.p(f"Force Game Difficulty: {force_difficulty_status}"),
             ui.p(f"Solution Quiz: {quiz_status}"),
             ui.p(f"Force Solution Quiz: {force_quiz_status}"),
+            ui.p(f"Map Feature: {map_status}"),
             ui.p(f"Visualization Mode: {viz_mode}"),
             ui.p(f"Graph Font Size: {font_size}px"),
             ui.p(f"Password Protection: {'Yes' if state_manager.config['settings']['password_protected'] else 'No'}")
@@ -396,6 +413,20 @@ def settings_ui_server(input, output, session):
                     duration=2
                 )
     
+    # Map feature toggle handler
+    @reactive.Effect
+    def handle_map_toggle():
+        if state_manager.settings_unlocked():
+            enabled = input.settings_map_enabled()
+            if enabled is not None:
+                state_manager.update_map_setting(enabled)
+                status = "enabled" if enabled else "disabled"
+                ui.notification_show(
+                    f"Map feature {status}.", 
+                    type="success",
+                    duration=2
+                )
+    
     # Font size handler - always active (accessibility feature)
     @reactive.Effect
     def handle_font_size():
@@ -423,4 +454,5 @@ def settings_ui_server(input, output, session):
             ui.update_selectize("force_game_difficulty", selected="user_choice" if state_manager.force_game_difficulty.get() is None else state_manager.force_game_difficulty.get())
             ui.update_switch("settings_solution_quiz_enabled", value=state_manager.solution_quiz_enabled())
             ui.update_switch("force_solution_quiz", value=state_manager.force_solution_quiz())
+            ui.update_switch("settings_map_enabled", value=state_manager.map_enabled())
             ui.update_radio_buttons("visualization_mode", selected=state_manager.visualization_mode())
