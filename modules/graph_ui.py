@@ -79,9 +79,12 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
-    @reactive.event(state_manager.step_counter, state_manager.current_language)
+    @reactive.event(state_manager.step_counter, state_manager.current_language, state_manager.waiting_for_prediction)
     def progress_bar():
-        return create_progress_bar(state_manager.step_counter.get())
+        return create_progress_bar(
+            state_manager.step_counter.get(), 
+            state_manager.waiting_for_prediction.get()
+        )
 
     @output
     @render.ui
@@ -166,6 +169,9 @@ def graph_ui_server(input, output, session):
     @reactive.Effect
     @reactive.event(input.next_step)
     def next_step():
+        # Block next step if waiting for prediction
+        if state_manager.waiting_for_prediction.get():
+            return
         algorithm_handler.handle_next_step(input)
 
     @reactive.Effect
@@ -321,7 +327,14 @@ def graph_ui_server(input, output, session):
         # Only allow toggle if game feature is enabled in settings
         if state_manager.game_enabled():
             if input.game_enabled():
+                # Enabling game mode - reset game state
                 state_manager.reset_game_state()
+            else:
+                # Disabling game mode - reset game state and algorithm if in progress
+                state_manager.reset_game_state()
+                # Check if algorithm is in progress (step counter > 0) and reset it
+                if state_manager.step_counter.get() > 0:
+                    state_manager.reset_algorithm_state()
     
     @reactive.Effect
     @reactive.event(input.solution_quiz_enabled)

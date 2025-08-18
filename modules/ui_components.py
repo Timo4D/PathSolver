@@ -311,7 +311,7 @@ def create_prediction_game_ui(
     )
 
 
-def create_progress_bar(step_counter):
+def create_progress_bar(step_counter, waiting_for_prediction=False):
     """Create progress bar UI."""
     return TagList(
         ui.layout_columns(
@@ -322,7 +322,11 @@ def create_progress_bar(step_counter):
                 )
                 for i in range(4)
             ],
-            ui.input_action_button("next_step", _("next_step")),
+            ui.input_action_button(
+                "next_step", 
+                _("next_step"),
+                disabled=waiting_for_prediction
+            ),
         )
     )
 
