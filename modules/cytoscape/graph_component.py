@@ -80,7 +80,7 @@ def output_cytoscape_graph(id, height="400px"):
             .resize-handle {{
                 position: absolute;
                 background: #007bff;
-                z-index: 2000;
+                z-index: 1050;
                 pointer-events: auto;
             }}
             

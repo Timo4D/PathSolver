@@ -25,8 +25,10 @@ class DijkstraStepHandler:
         df = self.state.distances_df.get()
         G = self.state.graph.get()
         
-        # Increment global step counter for each action
-        self.state.global_step_counter.set(self.state.global_step_counter.get() + 1)
+        # Only increment global step counter if algorithm hasn't reached target yet
+        # Don't increment during STEP_FINISH or STEP_SHOW_SOLUTION (algorithm is complete)
+        if step not in [STEP_FINISH, STEP_SHOW_SOLUTION]:
+            self.state.global_step_counter.set(self.state.global_step_counter.get() + 1)
         
         # Clear any previous error states when starting algorithm
         if step == STEP_INITIALIZE:
