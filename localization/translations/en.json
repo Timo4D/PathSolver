@@ -251,7 +251,7 @@
   "city_potsdam": "Potsdam",
   "city_schwerin": "Schwerin",
   
-  "select_k_not_smaller_n": "Please select make sure that k is not smaller than n",
+  "select_k_not_smaller_n": "Number of neighbors (k) must be less than number of nodes (n)",
   "select_k_even_neighbors": "Number of neighbors (k) must be even for ring topology",
   "select_k_minimum_ring": "Number of neighbors (k) must be at least 2 for ring topology",
   "edge_list_file_not_found": "Edge list file not found: {path}",
