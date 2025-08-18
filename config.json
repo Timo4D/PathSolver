@@ -1,0 +1,13 @@
+{
+  "settings": {
+    "game_feature_enabled": true,
+    "force_game_mode": false,
+    "force_game_difficulty": null,
+    "visualization_mode": "cytoscape",
+    "graph_font_size": 16,
+    "password_protected": true,
+    "admin_password": "admin123",
+    "solution_quiz_enabled": true,
+    "force_solution_quiz": false
+  }
+}

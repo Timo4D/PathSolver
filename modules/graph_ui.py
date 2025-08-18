@@ -1,509 +1,791 @@
-from enum import Enum
-from operator import contains
+"""Refactored graph UI module with improved organization."""
 
 import networkx as nx
-import pandas as pd
 from htmltools import TagList
 from shiny import ui, render, reactive
 from shiny.types import FileInfo
 
-from modules.djikstra_explanation import djikstra_explanation
+from constants import DEFAULT_EDGE_LIST_PATH, STEP_FINISH
+from constants import DEFAULT_START_NODE, DEFAULT_TARGET_NODE
+from localization import _
+from modules.state_manager import state_manager
+from modules.ui_components import (
+    main_ui, GraphType, create_progress_bar, create_explanation_ui,
+    render_graph_generator_settings, render_error_tooltip, render_distances_table,
+    create_prediction_game_ui
+)
+from modules.algorithm_logic import DijkstraStepHandler
+from modules.cytoscape.graph_component import render_cytoscape
 from modules.solution_quiz import render_solution_quiz
-from modules.tutorial_modal import tutorial_modal, tutorial_modal_server
+from modules.tutorial_modal import tutorial_modal_server
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
-from utils.graph_utils import plot_graph, dijkstra_solution
-from utils.icons import warning as warning_icon
-
-distances_df = reactive.Value(pd.DataFrame())
-graph = reactive.Value(nx.Graph())
-seed = reactive.Value(1)
-step_counter = reactive.Value(0)
-step_explanation = reactive.Value(TagList("Here will be the explanations of every step"))
-current_node = reactive.Value(None)
-current_edges = reactive.Value([])
-distance = reactive.Value(0)
-nodes_visited = reactive.Value([])
-state_history = reactive.Value([])
-invalid_edge_list = reactive.Value(False)
-solution = reactive.Value()
-start_node_error = reactive.Value(False)
-target_node_error = reactive.Value(False)
-
-
-class GraphType(Enum):
-    RANDOM_GRAPH = "random_graph"
-    KOOT_EXAMPLE_DEUTSCHLAND = "koot_example_deutschland"
-    EDGE_LIST = "edge_list"
-    CSV_FILE = "csv_file"
+from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout
 
 
 def graph_ui():
-    return ui.page_fluid(
-        ui.layout_sidebar(
-            ui.sidebar(
-                tutorial_modal(),
-                graph_selection_ui(),
-                ui.output_ui("graph_generator_settings"),
-                ui.input_numeric("start_node", ui.span("Start Node", ui.output_ui("start_node_error_message")), value=0,
-                                 min=0),
-                ui.input_numeric("target_node", ui.span("Target Node", ui.output_ui("target_node_error_message")),
-                                 value=1, min=0),
-                ui.input_numeric("layout_seed", "Layout Seed", value=1, min=0),
-            ),
-            ui.output_plot("graph_plot"),
-            ui.output_ui("progress_bar"),
-            ui.output_ui("explain"),
-            ui.row(
-                ui.column(6, ui.output_ui("render_solution_quiz_ui"), distances_ui()),
-                ui.column(6, visited_nodes_ui(), algorithm_explanation_ui())
-            )
-        ),
-    )
-
-
-def graph_selection_ui():
-    return ui.input_selectize(
-        "selectize_graph",
-        "Select a Graph",
-        {GraphType.RANDOM_GRAPH.value: "Random Graph",
-         GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value: "Germany Example",
-         GraphType.EDGE_LIST.value: "Import from Edgelist",
-         GraphType.CSV_FILE.value: "Upload a CSV file"},
-        selected=GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
-    )
-
-
-def distances_ui():
-    return ui.card(
-        ui.card_header("Distances between nodes"),
-        ui.card_body(
-            ui.output_data_frame("display_distances"),
-        )
-    )
-
-
-def visited_nodes_ui():
-    return ui.card(
-        ui.card_header("Visited Nodes"),
-        ui.card_body(ui.output_ui("visited_nodes"))
-    )
-
-
-def algorithm_explanation_ui():
-    return ui.card(
-        ui.card_header("Explanaiton of the Algorithm"),
-        ui.card_body(
-            djikstra_explanation
-
-        )
-    )
-
-
-def save_state():
-    state = {
-        "distances_df": distances_df.get().copy(),
-        "step_counter": step_counter.get(),
-        "nodes_visited": nodes_visited.get().copy(),
-        "current_edges": current_edges.get().copy(),
-        "current_node": current_node.get(),
-        "step_explanation": step_explanation.get()
-    }
-    state_history.get().append(state)
-
-
-def restore_state():
-    if state_history.get():
-        state = state_history.get().pop()
-        distances_df.set(state["distances_df"])
-        step_counter.set(state["step_counter"])
-        nodes_visited.set(state["nodes_visited"])
-        current_edges.set(state["current_edges"])
-        current_node.set(state["current_node"])
-        step_explanation.set(state["step_explanation"])
-
-
-def reset_df():
-    G = graph.get()
-    if G:
-        nodes, index_name = get_graph_nodes_and_index_name(G)
-        distance_matrix = pd.DataFrame(index=nodes, columns=["Cost", "Previous"])
-        distance_matrix["Cost"] = float('inf')
-
-        distance_matrix.index.name = index_name
-        distance_matrix.reset_index(inplace=True)
-        distances_df.set(distance_matrix)
-        step_counter.set(0)
-        nodes_visited.set([])
-        current_edges.set([])
-        current_node.set(None)
-        solution.set(None)
-        step_explanation.set(TagList("Here will be the explanations of every step"))
-
-
-def get_graph_nodes_and_index_name(G):
-    if "label" in G.nodes[0]:
-        nodes = dict(sorted(nx.get_node_attributes(G, "label").items())).values()
-        index_name = "Cities"
-    else:
-        nodes = [str(node) for node in G.nodes]
-        index_name = "Node"
-    return nodes, index_name
+    """Main graph UI function."""
+    return main_ui()
 
 
 def graph_ui_server(input, output, session):
+    """Main server logic for the graph UI."""
+    # Initialize algorithm handler
+    algorithm_handler = DijkstraStepHandler(state_manager)
+    
     @output
     @render.ui
     def render_solution_quiz_ui():
-        if step_counter.get() == 3:
-            return render_solution_quiz()
+        if state_manager.step_counter.get() == STEP_FINISH:
+            # Check if solution quiz should be shown
+            # Quiz is shown if: admin enabled it AND (admin forced it OR user enabled it)
+            quiz_should_show = state_manager.solution_quiz_enabled.get() and (
+                state_manager.force_solution_quiz.get() or  # Admin forced it on
+                (input.solution_quiz_enabled() if input.solution_quiz_enabled() is not None else True)  # User choice (default True)
+            )
+            
+            if quiz_should_show:
+                return render_solution_quiz()
 
     @output
     @render.ui
+    @reactive.event(
+        state_manager.waiting_for_prediction, state_manager.game_score,
+        state_manager.consecutive_correct, state_manager.total_predictions,
+        state_manager.correct_predictions, state_manager.last_prediction_correct,
+        state_manager.game_enabled, state_manager.force_game_mode, state_manager.current_language
+    )
+    def prediction_game_ui():
+        # Only show prediction game UI if game feature is enabled in settings
+        if not state_manager.game_enabled():
+            return ui.div()
+        
+        # Check if game should be active (forced or user enabled)
+        game_active = state_manager.force_game_mode() or \
+                     (input.game_enabled() if input.game_enabled() is not None else False)
+        
+        # Only show UI if game is actually active
+        if not game_active:
+            return ui.div()
+        
+        return create_prediction_game_ui(
+            state_manager.waiting_for_prediction.get(),
+            state_manager.game_score.get(),
+            state_manager.consecutive_correct.get(),
+            state_manager.total_predictions.get(),
+            state_manager.correct_predictions.get(),
+            state_manager.last_prediction_correct.get(),
+            state_manager.get_effective_game_difficulty()
+        )
+
+    @output
+    @render.ui
+    @reactive.event(state_manager.step_counter, state_manager.current_language, state_manager.waiting_for_prediction)
     def progress_bar():
-        return create_progress_bar()
+        return create_progress_bar(
+            state_manager.step_counter.get(), 
+            state_manager.waiting_for_prediction.get()
+        )
 
     @output
     @render.ui
+    @reactive.event(state_manager.step_counter, state_manager.step_explanation, state_manager.global_step_counter)
     def explain():
-        return create_explanation_ui()
+        return create_explanation_ui(
+            state_manager.step_counter.get(),
+            state_manager.step_explanation.get(),
+            state_manager.global_step_counter.get()
+        )
 
     @output
     @render.ui
-    @reactive.event(nodes_visited)
+    @reactive.event(state_manager.nodes_visited)
     def visited_nodes():
         nodes = ", ".join(
-            [str(int(node)) for node in nodes_visited.get()]) if nodes_visited.get() else "No nodes visited yet"
+            [str(int(node)) for node in state_manager.nodes_visited.get()]
+        ) if state_manager.nodes_visited.get() else _("no_nodes_visited")
         return TagList(nodes)
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def algorithm_explanation():
+        """Render algorithm explanation that updates when language changes."""
+        from modules.ui_components import algorithm_explanation_ui
+        return algorithm_explanation_ui()
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_graph_selection():
+        """Dynamic graph selection UI that updates with language."""
+        from modules.ui_components import graph_selection_ui
+        return graph_selection_ui()
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_start_node():
+        """Dynamic start node input that updates with language."""
+        return ui.input_numeric(
+            "start_node",
+            ui.span(_("start_node"), ui.output_ui("start_node_error_message")),
+            value=DEFAULT_START_NODE,
+            min=0,
+        )
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_target_node():
+        """Dynamic target node input that updates with language."""
+        return ui.input_numeric(
+            "target_node",
+            ui.span(_("target_node"), ui.output_ui("target_node_error_message")),
+            value=DEFAULT_TARGET_NODE,
+            min=0,
+        )
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_distances():
+        """Dynamic distances table that updates with language."""
+        from modules.ui_components import distances_ui
+        return distances_ui()
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language)
+    def dynamic_visited_nodes():
+        """Dynamic visited nodes card that updates with language."""
+        from modules.ui_components import visited_nodes_ui
+        return visited_nodes_ui()
 
     @reactive.Effect
     @reactive.event(input.prev_step)
     def prev_step():
-        restore_state()
+        state_manager.restore_state()
 
     @reactive.Effect
     @reactive.event(input.next_step)
     def next_step():
-        handle_next_step(input)
+        # Block next step if waiting for prediction
+        if state_manager.waiting_for_prediction.get():
+            return
+        algorithm_handler.handle_next_step(input)
 
     @reactive.Effect
     def update_graph():
-        update_graph_based_on_selection(input)
+        _update_graph_based_on_selection(input)
 
     @output
     @render.data_frame
-    @reactive.event(distances_df, step_counter, input.start_node, input.target_node)
+    @reactive.event(
+        state_manager.distances_df, state_manager.step_counter, 
+        input.start_node, input.target_node, state_manager.game_difficulty,
+        state_manager.force_game_difficulty, state_manager.nodes_visited, state_manager.current_node
+    )
     def display_distances():
-        return render_distances(input)
+        from modules.ui_components import get_filtered_distances_for_difficulty
+        
+        # Apply difficulty-based filtering to distances table
+        original_df = state_manager.distances_df.get()
+        filtered_df = get_filtered_distances_for_difficulty(
+            original_df,
+            state_manager.get_effective_game_difficulty(),
+            state_manager.nodes_visited.get(),
+            state_manager.current_node.get()
+        )
+        
+        return render_distances_table(
+            filtered_df,
+            input.start_node(),
+            input.target_node()
+        )
 
     @reactive.Effect
     @reactive.event(input.target_node, input.start_node)
-    def reset_djikstra():
-        reset_df()
+    def reset_dijkstra():
+        state_manager.reset_algorithm_state()
 
     @reactive.Effect
     def initialize_distances():
-        reset_df()
+        state_manager.reset_algorithm_state()
 
     @output
     @render.ui
     def graph_generator_settings():
-        return render_graph_generator_settings(input)
+        return render_graph_generator_settings(input.selectize_graph())
+
+    @output
+    @render.ui
+    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.current_language)
+    def dynamic_game_toggle():
+        """Show/hide game toggle based on settings."""
+        from modules.ui_components import prediction_game_toggle_ui
+        return prediction_game_toggle_ui()
+
+    @output
+    @render.ui
+    @reactive.event(state_manager.solution_quiz_enabled, state_manager.force_solution_quiz, state_manager.current_language)
+    def dynamic_solution_quiz_toggle():
+        """Show/hide solution quiz toggle based on settings."""
+        from modules.ui_components import solution_quiz_toggle_ui
+        return solution_quiz_toggle_ui()
+    
+    @output
+    @render.ui
+    @reactive.event(state_manager.game_enabled, state_manager.force_game_mode, state_manager.force_game_difficulty, input.game_enabled, state_manager.current_language)
+    def game_difficulty_selector():
+        """Show/hide difficulty selector based on settings and game state."""
+        from modules.ui_components import game_difficulty_selector_ui
+        
+        # Only show if game feature is enabled in settings
+        if not state_manager.game_enabled():
+            return ui.div()
+        
+        # Check if game should be active (forced or user enabled)
+        game_active = state_manager.force_game_mode() or \
+                     (input.game_enabled() if input.game_enabled() is not None else False)
+        
+        # Only show difficulty selector if game is actually active
+        if not game_active:
+            return ui.div()
+        
+        return game_difficulty_selector_ui()
+
+    @output
+    @render.ui
+    @reactive.event(state_manager.visualization_mode, state_manager.current_language)
+    def layout_seed_control():
+        """Show layout seed input only when matplotlib visualization is selected."""
+        if state_manager.visualization_mode() == "matplotlib":
+            return ui.input_numeric(
+                "layout_seed",
+                _("layout_seed"),
+                value=42,
+                min=0,
+                max=999,
+                step=1
+            )
+        else:
+            return ui.div()  # Return empty div when cytoscape is selected
 
     @output
     @render.ui
     def start_node_error_message():
-        return ui.tooltip(warning_icon, "Your input is invalid") if start_node_error.get() else None
+        return render_error_tooltip(state_manager.start_node_error.get())
 
     @output
     @render.ui
     def target_node_error_message():
-        return ui.tooltip(warning_icon, "Your input is invalid") if target_node_error.get() else None
+        return render_error_tooltip(state_manager.target_node_error.get())
 
     @output
     @render.ui
     def edge_list_error_message():
-        return ui.tooltip(warning_icon, "Your input is invalid") if invalid_edge_list.get() else None
-        # return ui.p("Your Input edge list is not Valid!",
-        #             style="border: 3px solid red;") if invalid_edge_list.get() else None,
+        return render_error_tooltip(state_manager.invalid_edge_list.get())
 
     @output
-    @render.plot
-    @reactive.event(input.selectize_graph, graph, input.layout_seed, input.start_node, input.target_node, current_node,
-                    current_edges)
-    def graph_plot():
-        if step_counter.get() == 3:
-            final_step = True
+    @render.ui
+    @reactive.event(state_manager.visualization_mode)
+    def graph_display():
+        """Conditionally render either cytoscape or matplotlib graph."""
+        mode = state_manager.visualization_mode()
+        if mode == "cytoscape":
+            from modules.cytoscape.graph_component import output_cytoscape_graph
+            # Add a key to force recreation when switching modes
+            return ui.div(
+                output_cytoscape_graph("cytoscape_graph"),
+                key=f"cytoscape-{mode}"
+            )
         else:
-            final_step = False
+            return ui.div(
+                ui.output_plot("matplotlib_graph", height="600px"),
+                key=f"matplotlib-{mode}"
+            )
 
-        plot_graph(graph.get(), input.start_node(), input.target_node(), input.layout_seed(), distances_df.get(),
-                   current_node.get(), current_edges.get(), final_step)
-
-    tutorial_modal_server(input, output, session)
-
+    @reactive.Effect
+    @reactive.event(state_manager.visualization_mode)
+    def handle_visualization_mode_change():
+        """Handle visualization mode changes to ensure proper graph rendering."""
+        mode = state_manager.visualization_mode()
+        # Force a graph update when switching modes to prevent stale state
+        graph = state_manager.graph.get()
+        if graph:
+            # Trigger a graph update by temporarily setting the same graph
+            state_manager.graph.set(graph)
+    
     @reactive.Effect
     @reactive.event(input.submit_solution)
     def check_user_solution():
-        user_input = input.user_solution().strip()
-        try:
-            user_solution = [int(node) for node in user_input.split(",")]
-        except ValueError:
-            user_solution = None
-
-        correct_solution = solution.get()
-
-        if user_solution == correct_solution:
-            step_counter.set(4)
-            # to draw the solution
-            handle_next_step(input)
-        else:
-            step_explanation.set(TagList("Sorry, your solution is incorrect. Please try again."))
+        algorithm_handler.check_user_solution(input)
+    
+    @reactive.Effect
+    @reactive.event(input.game_enabled)
+    def toggle_game_mode():
+        # Only allow toggle if game feature is enabled in settings
+        if state_manager.game_enabled():
+            if input.game_enabled():
+                # Enabling game mode - reset game state
+                state_manager.reset_game_state()
+            else:
+                # Disabling game mode - reset game state and algorithm if in progress
+                state_manager.reset_game_state()
+                # Check if algorithm is in progress (step counter > 0) and reset it
+                if state_manager.step_counter.get() > 0:
+                    state_manager.reset_algorithm_state()
+    
+    @reactive.Effect
+    @reactive.event(input.solution_quiz_enabled)
+    def toggle_solution_quiz():
+        # This handler doesn't need to do anything special,
+        # the quiz logic in render_solution_quiz_ui will handle the user's choice
+        pass
+    
+    @reactive.Effect
+    @reactive.event(input.game_difficulty)
+    def update_difficulty():
+        """Update game difficulty when user changes selection."""
+        if (state_manager.game_enabled() and input.game_difficulty() and 
+            not state_manager.force_game_difficulty.get()):
+            # Only allow user to change difficulty if not forced by instructor
+            state_manager.update_game_difficulty(input.game_difficulty())
+    
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_node_clicked)
+    def handle_prediction_click():
+        """Handle node clicks for prediction game."""
+        # Only handle predictions if game feature is enabled and waiting for prediction
+        if not state_manager.game_enabled() or not state_manager.waiting_for_prediction.get():
+            return
+        
+        data = input.cytoscape_graph_node_clicked()
+        if data and "id" in data:
+            predicted_node = int(data["id"])
+            # Handle the prediction through the algorithm handler
+            algorithm_handler.handle_prediction(predicted_node, input)
 
     @reactive.calc
     def parsed_edge_list():
         file: list[FileInfo] | None = input.edge_list_file()
         if file is None:
-            print("File is None")
             return None
-        else:
-            print(f"File: {file}")
-            return file[0]["datapath"]
+        return file[0]["datapath"]
 
     @reactive.Effect
     def use_parsed_edge_list():
         edge_list = parsed_edge_list()
         if edge_list is not None:
-            print(edge_list)
-            with open('/home/timo/shiny/dijkstra/edgelist.txt', 'r') as file:
-                edge_list_str = file.read()
-            print(edge_list_str)
-            result = generate_from_edge_list(edge_list_str)
-            if isinstance(result, str):
-                invalid_edge_list.set(True)
-                step_explanation.set(TagList(result))
-            else:
-                invalid_edge_list.set(False)
-                graph.set(result)
+            try:
+                with open(DEFAULT_EDGE_LIST_PATH, 'r') as file:
+                    edge_list_str = file.read()
+                result = generate_from_edge_list(edge_list_str)
+                if isinstance(result, str):
+                    state_manager.invalid_edge_list.set(True)
+                    state_manager.step_explanation.set(TagList(result))
+                else:
+                    state_manager.invalid_edge_list.set(False)
+                    state_manager.graph.set(result)
+            except FileNotFoundError:
+                state_manager.invalid_edge_list.set(True)
+                state_manager.step_explanation.set(
+                    TagList(f"Edge list file not found: {DEFAULT_EDGE_LIST_PATH}")
+                )
 
-
-def create_progress_bar():
-    return TagList(
-        ui.layout_columns(
-            ui.input_action_button("prev_step", "Previous Step"),
-            *[ui.div(
-                style=f"background-color: {'red' if step_counter.get() >= i else '#d9d9d9'}; height: 30px; width: 100%; margin: auto; display: flex; align-items: center; justify-content: center;")
-                for i in range(4)],
-            ui.input_action_button("next_step", "Next Step"),
+    @output
+    @render_cytoscape
+    @reactive.event(
+        state_manager.graph, input.start_node, input.target_node, 
+        state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
+        state_manager.prediction_candidates, state_manager.visualization_mode, state_manager.game_difficulty,
+        state_manager.force_game_difficulty, state_manager.graph_font_size
+    )
+    def cytoscape_graph():
+        """Render the graph using Cytoscape.js."""
+        # Only render if visualization mode is cytoscape
+        if state_manager.visualization_mode() != "cytoscape":
+            # Return empty structure instead of None to prevent payload issues
+            return {
+                "elements": [],
+                "style": get_cytoscape_styles(state_manager.graph_font_size()),
+                "layout": get_cytoscape_layout()
+            }
+            
+        graph = state_manager.graph.get()
+        if not graph:
+            # Return empty structure if no graph
+            return {
+                "elements": [],
+                "style": get_cytoscape_styles(state_manager.graph_font_size()),
+                "layout": get_cytoscape_layout()
+            }
+            
+        elements = convert_graph_to_cytoscape(
+            graph,
+            current_node=state_manager.current_node.get(),
+            start_node=input.start_node(),
+            target_node=input.target_node(),
+            nodes_visited=state_manager.nodes_visited.get(),
+            current_edges=state_manager.current_edges.get(),
+            distances=state_manager.distances_df.get(),
+            prediction_candidates=state_manager.prediction_candidates.get(),
+            game_difficulty=state_manager.get_effective_game_difficulty()
         )
+        
+        return {
+            "elements": elements,
+            "style": get_cytoscape_styles(state_manager.graph_font_size()),
+            "layout": get_cytoscape_layout()
+        }
+
+    @output
+    @render.plot
+    @reactive.event(
+        state_manager.graph, input.start_node, input.target_node, 
+        state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
+        state_manager.visualization_mode, input.layout_seed
     )
+    def matplotlib_graph():
+        """Render the graph using Matplotlib."""
+        # Only render if visualization mode is matplotlib
+        if state_manager.visualization_mode() != "matplotlib":
+            return None
+            
+        graph = state_manager.graph.get()
+        if not graph:
+            return None
+            
+        start_node = None
+        target_node = None
+        
+        # Parse start and target nodes
+        if input.start_node():
+            try:
+                start_node = int(input.start_node())
+            except (ValueError, TypeError):
+                start_node = input.start_node()
+        
+        if input.target_node():
+            try:
+                target_node = int(input.target_node())
+            except (ValueError, TypeError):
+                target_node = input.target_node()
+        
+        # Get layout seed from input or use default
+        seed = input.layout_seed() if input.layout_seed() is not None else 42
+        
+        # Create the plot
+        return plot_graph(
+            graph,
+            start=start_node,
+            target=target_node,
+            seed=seed,
+            distances=state_manager.distances_df.get(),
+            current_node=state_manager.current_node.get(),
+            current_edges=state_manager.current_edges.get(),
+            dark_mode=False,
+            final_step=False
+        )
 
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_set_start_node)
+    def handle_set_start_node():
+        """Handle setting start node from context menu."""
+        data = input.cytoscape_graph_set_start_node()
+        if data and "id" in data:
+            node_id = int(data["id"])
+            graph = state_manager.graph.get()
+            if graph and node_id in graph.nodes():
+                # Update the start node input programmatically
+                ui.update_selectize("start_node", selected=str(node_id))
+                # Reset algorithm state when start node changes
+                state_manager.reset_algorithm_state()
 
-def create_explanation_ui():
-    step = step_counter.get()
-    headings = {
-        0: "Step 0: Initialize",
-        1: "Step 1: Visit Nodes",
-        2: "Step 2: Look For Next Node",
-        3: "Step 3: Finish",
-        4: "Congratulations! Your solution is correct."
-    }
-    return TagList(
-        ui.h1(headings.get(step), style="margin-bottom: 0;"),
-        ui.p(step_explanation.get(), style="margin-top: 0;"),
-    )
+    @reactive.Effect  
+    @reactive.event(input.cytoscape_graph_set_target_node)
+    def handle_set_target_node():
+        """Handle setting target node from context menu."""
+        data = input.cytoscape_graph_set_target_node()
+        if data and "id" in data:
+            node_id = int(data["id"])
+            graph = state_manager.graph.get()
+            if graph and node_id in graph.nodes():
+                # Update the target node input programmatically
+                ui.update_selectize("target_node", selected=str(node_id))
+                # Reset algorithm state when target node changes
+                state_manager.reset_algorithm_state()
 
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_delete_node)
+    def handle_delete_node():
+        """Handle deleting a node from context menu."""
+        data = input.cytoscape_graph_delete_node()
+        if data and "id" in data:
+            node_id = int(data["id"])
+            graph = state_manager.graph.get()
+            if graph and node_id in graph.nodes():
+                # Check if deleting this node would disconnect the graph
+                if len(graph.nodes()) <= 2:
+                    state_manager.step_explanation.set(
+                        TagList(_("cannot_delete_min_nodes"))
+                    )
+                    return
+                
+                # Remove the node and all its edges from the NetworkX graph
+                graph_copy = graph.copy()
+                graph_copy.remove_node(node_id)
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Clear start/target if they were the deleted node
+                current_start = input.start_node()
+                current_target = input.target_node()
+                
+                if current_start and int(current_start) == node_id:
+                    ui.update_selectize("start_node", selected="")
+                if current_target and int(current_target) == node_id:
+                    ui.update_selectize("target_node", selected="")
+                
+                # Reset algorithm state
+                state_manager.reset_algorithm_state()
 
-def update_graph_based_on_selection(input):
-    if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
-        if input.k_slider() > input.n_slider():
-            step_explanation.set(TagList("Please select make sure that k is not smaller than n"))
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_delete_edge)
+    def handle_delete_edge():
+        """Handle deleting an edge from context menu."""
+        data = input.cytoscape_graph_delete_edge()
+        if data and "source" in data and "target" in data:
+            source_id = int(data["source"])
+            target_id = int(data["target"])
+            graph = state_manager.graph.get()
+            
+            if graph and graph.has_edge(source_id, target_id):
+                # Create a copy of the graph and remove the edge
+                graph_copy = graph.copy()
+                graph_copy.remove_edge(source_id, target_id)
+                
+                # Check if removing this edge would disconnect the graph
+                if not nx.is_connected(graph_copy):
+                    state_manager.step_explanation.set(
+                        TagList(_("cannot_delete_disconnect").format(source=source_id, target=target_id))
+                    )
+                    return
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Reset algorithm state since graph structure changed
+                state_manager.reset_algorithm_state()
+
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_add_node)
+    def handle_add_node():
+        """Handle adding a new node from context menu."""
+        data = input.cytoscape_graph_add_node()
+        print(f"Debug: Received add_node data: {data}")  # Debug output
+        
+        if data and "x" in data and "y" in data:
+            graph = state_manager.graph.get()
+            if graph:
+                # Find the next available node ID
+                existing_nodes = list(graph.nodes())
+                if existing_nodes:
+                    # For integer node IDs, find the maximum and add 1
+                    if all(isinstance(node, int) for node in existing_nodes):
+                        new_node_id = max(existing_nodes) + 1
+                    else:
+                        # For mixed or string node IDs, find a unique ID
+                        new_node_id = len(existing_nodes)
+                        while new_node_id in existing_nodes:
+                            new_node_id += 1
+                else:
+                    new_node_id = 0
+                
+                print(f"Debug: Creating new node with ID: {new_node_id} at position ({data['x']}, {data['y']})")  # Debug output
+                
+                # Create a copy of the graph and add the new node with position
+                graph_copy = graph.copy()
+                graph_copy.add_node(new_node_id, x=data["x"], y=data["y"])
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Reset algorithm state since graph structure changed
+                state_manager.reset_algorithm_state()
+                
+                state_manager.step_explanation.set(
+                    TagList(_("added_new_node").format(node_id=new_node_id, x=data['x'], y=data['y']))
+                )
+            else:
+                print("Debug: No graph found in state manager")  # Debug output
         else:
-            graph.set(generate_random_graph(input.n_slider(), input.k_slider(), input.p_slider()))
+            print("Debug: No valid position data received for add_node event")  # Debug output
+
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_edge_creation_started)
+    def handle_edge_creation_started():
+        """Handle start of edge creation mode."""
+        data = input.cytoscape_graph_edge_creation_started()
+        if data and "source" in data:
+            source_node = data["source"]
+            state_manager.step_explanation.set(
+                TagList(_("edge_creation_start").format(source=source_node))
+            )
+
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_edge_creation_ended)
+    def handle_edge_creation_ended():
+        """Handle end of edge creation mode."""
+        state_manager.step_explanation.set(
+            TagList(_("edge_creation_ended"))
+        )
+
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_create_edge)
+    def handle_create_edge():
+        """Handle creating a new edge between two nodes."""
+        data = input.cytoscape_graph_create_edge()
+        if data and "source" in data and "target" in data:
+            source_id = int(data["source"])
+            target_id = int(data["target"])
+            graph = state_manager.graph.get()
+            
+            if graph and source_id in graph.nodes() and target_id in graph.nodes():
+                # Check if edge already exists
+                if graph.has_edge(source_id, target_id):
+                    state_manager.step_explanation.set(
+                        TagList(_("edge_already_exists").format(source=source_id, target=target_id))
+                    )
+                    return
+                
+                # Create a copy of the graph and add the new edge
+                graph_copy = graph.copy()
+                # Add edge with default weight of 1
+                graph_copy.add_edge(source_id, target_id, weight=1)
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Reset algorithm state since graph structure changed
+                state_manager.reset_algorithm_state()
+                
+                state_manager.step_explanation.set(
+                    TagList(_("created_edge").format(source=source_id, target=target_id))
+                )
+            else:
+                state_manager.step_explanation.set(
+                    TagList(_("cannot_create_invalid_nodes").format(source=source_id, target=target_id))
+                )
+
+    @reactive.Effect
+    @reactive.event(input.cytoscape_graph_update_edge_weight)
+    def handle_update_edge_weight():
+        """Handle updating the weight of an edge."""
+        data = input.cytoscape_graph_update_edge_weight()
+        if data and "source" in data and "target" in data and "weight" in data:
+            source_id = int(data["source"])
+            target_id = int(data["target"])
+            new_weight = float(data["weight"])
+            graph = state_manager.graph.get()
+            
+            if graph and graph.has_edge(source_id, target_id):
+                # Create a copy of the graph and update the edge weight
+                graph_copy = graph.copy()
+                graph_copy[source_id][target_id]['weight'] = new_weight
+                
+                # Update the graph in state manager
+                state_manager.graph.set(graph_copy)
+                
+                # Reset algorithm state since edge weights changed
+                state_manager.reset_algorithm_state()
+                
+                state_manager.step_explanation.set(
+                    TagList(_("updated_edge_weight").format(source=source_id, target=target_id, weight=new_weight))
+                )
+            else:
+                state_manager.step_explanation.set(
+                    TagList(_("cannot_update_nonexistent").format(source=source_id, target=target_id))
+                )
+
+    # Initialize tutorial modal server and get tutorial object
+    tutorial = tutorial_modal_server(input, output, session)
+    
+    # Add tutorial styles output
+    @output
+    @render.ui
+    def tutorial_styles():
+        if not tutorial.is_active():
+            return ""
+        
+        current_step = tutorial.get_current_step()
+        highlight_element = current_step.get("highlight_element")
+        
+        if not highlight_element:
+            return ""
+        
+        # CSS to highlight the target element with enhanced visibility
+        return ui.tags.style(f"""
+            #{highlight_element} {{
+                border: 4px solid #ff6b35 !important;
+                border-radius: 8px !important;
+                box-shadow: 0 0 20px rgba(255, 107, 53, 0.6) !important;
+                position: relative !important;
+                z-index: 1050 !important;
+                background-color: rgba(255, 255, 255, 0.95) !important;
+            }}
+            
+            #{highlight_element}::before {{
+                content: "";
+                position: absolute;
+                top: -8px;
+                left: -8px;
+                right: -8px;
+                bottom: -8px;
+                border: 2px dashed #ff6b35;
+                border-radius: 12px;
+                z-index: -1;
+            }}
+            
+            
+            /* Special handling for different UI elements */
+            #{highlight_element}.form-control,
+            #{highlight_element}.form-select {{
+                background-color: rgba(255, 255, 255, 1) !important;
+            }}
+            
+            #{highlight_element} .card {{
+                background-color: rgba(255, 255, 255, 0.98) !important;
+            }}
+        """)
+
+
+def _update_graph_based_on_selection(input):
+    """Update graph based on user selection."""
+    if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
+        n = input.n_slider()
+        k = input.k_slider()
+        
+        # Validate ring topology constraints
+        if k >= n:
+            state_manager.step_explanation.set(
+                TagList(_("select_k_not_smaller_n"))
+            )
+        else:
+            graph = generate_random_graph(n, k, input.p_slider())
+            state_manager.graph.set(graph)
     elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
-        graph.set(generate_koot_example())
+        state_manager.graph.set(generate_koot_example())
     elif input.selectize_graph() == GraphType.EDGE_LIST.value:
         edge_list_input = input.edge_list_input()
         if isinstance(edge_list_input, str):
             result = generate_from_edge_list(input.edge_list_input())
             if isinstance(result, str):
-                invalid_edge_list.set(True)
-                step_explanation.set(TagList(result))
+                state_manager.invalid_edge_list.set(True)
+                state_manager.step_explanation.set(TagList(result))
             else:
-                invalid_edge_list.set(False)
-                graph.set(result)
+                state_manager.invalid_edge_list.set(False)
+                state_manager.graph.set(result)
         else:
-            graph.set(edge_list_input)
-
-
-def render_graph_generator_settings(input):
-    if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
-        return ui.TagList(
-            ui.input_slider("n_slider", "Number of Nodes", 2, 30, 8),
-            ui.input_slider("k_slider", "Neighbors in a ring topology", 2, 5, 3),
-            ui.input_slider("p_slider", "Probability of rewiring each edge", 0, 1, 0.5),
-        )
-    if input.selectize_graph() == GraphType.EDGE_LIST.value:
-        return ui.TagList(
-            ui.input_text_area("edge_list_input", ui.span("Edge List", ui.output_ui("edge_list_error_message")),
-                               "0 1 10\n1 2 10\n2 0 20", rows=10, autoresize=True)
-        )
-    if input.selectize_graph() == GraphType.CSV_FILE.value:
-        return ui.TagList(
-            ui.input_file("edge_list_file", ui.span("Upload an edge list", ui.output_ui("edge_list_error_message")))
-        )
-
-
-def render_distances(input):
-    df = distances_df.get()
-
-    if contains(df.columns, "Node"):
-        try:
-            index_start = int(df.index[df['Node'].astype(int) == int(input.start_node())].item())
-            index_target = int(df.index[df['Node'].astype(int) == int(input.target_node())].item())
-        except ValueError:
-            df = pd.DataFrame({"Error": ["Selected Node not on Graph"]})
-            return render.DataTable(df, width="100%")
-
-        try:
-            styles = [
-                {"rows": index_start, "style": {"background-color": "green"}},
-                {"rows": index_target, "style": {"background-color": "red"}},
-            ]
-            return render.DataTable(distances_df.get(), width="100%", styles=styles)
-        except TypeError:
-            df = pd.DataFrame({"Error": ["Invalid data"]})
-            return render.DataTable(df, width="100%")
-
-    else:
-        try:
-            styles = [
-                {"rows": [int(input.start_node())], "style": {"background-color": "green"}},
-                {"rows": [int(input.target_node())], "style": {"background-color": "red"}},
-            ]
-            return render.DataTable(distances_df.get(), width="100%", styles=styles)
-        except TypeError:
-            df = pd.DataFrame({"Error": ["Invalid data"]})
-            return render.DataTable(df, width="100%")
-
-
-def handle_next_step(input):
-    step = step_counter.get()
-    save_state()
-    df = distances_df.get()
-    G = graph.get()
-    if step == 0:
-        initialize_step(input, df, G)
-    elif step == 1:
-        visit_neighbors(df, G)
-    elif step == 2:
-        set_new_current_node(df, G, input)
-        if not solution.get():
-            solution.set(dijkstra_solution(G, input.start_node(), input.target_node()))
-    elif step == 4:
-        show_solution(solution.get())
-        step_explanation.set(TagList(""))
-
-
-def initialize_step(input, df, G):
-    step_explanation.set(TagList("First set distance to start node to 0 and every other node to infinity"))
-    if not df.empty:
-        start_node = input.start_node()
-        target_node = input.target_node()
-        if start_node in G.nodes:
-            start_node_error.set(False)
-        else:
-            start_node_error.set(True)
-            return
-
-        if target_node in G.nodes:
-            df.iloc[start_node, 1] = 0
-            if "label" in G.nodes[0]:
-                df.iloc[start_node, 2] = nx.get_node_attributes(G, "label")[start_node]
-            else:
-                df.iloc[start_node, 2] = start_node
-            distances_df.set(df)
-            nodes_visited.set(nodes_visited.get() + [start_node])
-            current_node.set(start_node)
-            step_counter.set(1)
-            target_node_error.set(False)
-        else:
-            target_node_error.set(True)
-
-
-def visit_neighbors(df, G):
-    prev_cost = df.iloc[current_node.get(), 1]
-    neighbors, edges = [], []
-    for n in G.neighbors(current_node.get()):
-        if n not in nodes_visited.get():
-            new_weight = G[n][current_node.get()]['weight'] + prev_cost
-
-            neighbors.append({"node": n, "weight": (G[n][current_node.get()]['weight'] + prev_cost)})
-
-            if new_weight < df.iloc[n, 1]:
-                df.iloc[n, 1] = new_weight
-                if "label" in G.nodes[0]:
-                    df.iloc[n, 2] = nx.get_node_attributes(G, "label")[current_node.get()]
-                else:
-                    df.iloc[n, 2] = current_node.get()
-
-            edges.append(sorted((n, current_node.get())))
-
-    distances_df.set(df.copy())
-    current_edges.set(current_edges.get() + edges)
-    nodes_visited_without_current = [int(node) for node in nodes_visited.get() if node != current_node.get()]
-    # Casting everything to int do to different int classes: int vs np.int65
-
-    nodes_visited_text = None
-    if nodes_visited_without_current:
-        nodes_visited_text = TagList(
-            f"We will leave nodes {nodes_visited_without_current} out as we have already visited them", ui.br()
-        )
-
-    step_explanation.set(
-        TagList(
-            "Now look at the possible unvisited neighbours", ui.br(),
-            nodes_visited_text,
-            "You need to calculate the cost of all unvisited neighbours. To do this add the distance to your current node + the weight of the edge.",
-            ui.br(),
-            "If the weight is lower that whats already calculated we need to update it, otherwise we won't change it",
-            ui.br(),
-        )
-    )
-    step_counter.set(2)
-
-
-def set_new_current_node(df, G, input):
-    current_edges.set([])
-
-    unvisited_nodes = df[~df.index.isin(nodes_visited.get())]
-    min_cost_node = unvisited_nodes["Cost"].idxmin()
-    current_node.set(min_cost_node)
-
-    if current_node.get() == input.target_node():
-        step_explanation.set(
-            TagList(
-                "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it",
-                ui.br(),
-                "You now have to enter your solution of the fastest path in new Box below. If it is correct you will see the path on the graph.",
-                ui.br(),
-                "The weights of the edges are now hidden, so try to get the solution with help of the table below.",
-                ui.br(),
-                "The Dijkstra Algorithm would trace the way from thr Target node via its previus node until it arrives at the start node",
-            )
-        )
-        step_counter.set(step_counter.get() + 1)
-    else:
-        step_explanation.set(
-            TagList(
-                f"You can see that {min_cost_node} is the node with the lowest cost that we have not visited yet, so {current_node.get()} is our new Node. ",
-                ui.br(),
-                f"Also notice that {current_node.get()} is not our Target Node, so we need to continue and do the previous step again",
-                ui.br()
-            )
-        )
-        step_counter.set(step_counter.get() - 1)
-    nodes_visited.set(nodes_visited.get() + [current_node.get()])
-
-
-def show_solution(solution):
-    current_edges.set([list(edge) for edge in zip(solution, solution[1:])])
+            state_manager.graph.set(edge_list_input)
