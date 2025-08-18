@@ -274,5 +274,7 @@
   "city_schwerin": "Schwerin",
   
   "select_k_not_smaller_n": "Bitte stellen Sie sicher, dass k nicht kleiner als n ist",
+  "select_k_even_neighbors": "Anzahl der Nachbarn (k) muss für Ring-Topologie gerade sein",
+  "select_k_minimum_ring": "Anzahl der Nachbarn (k) muss für Ring-Topologie mindestens 2 sein",
   "edge_list_file_not_found": "Kantenlisten-Datei nicht gefunden: {path}"
 }

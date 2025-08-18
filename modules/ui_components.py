@@ -360,6 +360,7 @@ def render_graph_generator_settings(graph_type):
                 MIN_NEIGHBORS,
                 MAX_NEIGHBORS,
                 DEFAULT_NEIGHBORS,
+                step=2,
             ),
             ui.input_slider(
                 "p_slider",

@@ -252,6 +252,8 @@
   "city_schwerin": "什未林",
   
   "select_k_not_smaller_n": "请确保k不小于n",
+  "select_k_even_neighbors": "邻居数量(k)对于环形拓扑必须是偶数",
+  "select_k_minimum_ring": "邻居数量(k)对于环形拓扑必须至少为2",
   "edge_list_file_not_found": "未找到边列表文件：{path}",
   
   "difficulty_easy_desc": "🟢 简单 - 显示完整提示和距离",

@@ -764,14 +764,16 @@ def graph_ui_server(input, output, session):
 def _update_graph_based_on_selection(input):
     """Update graph based on user selection."""
     if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
-        if input.k_slider() > input.n_slider():
+        n = input.n_slider()
+        k = input.k_slider()
+        
+        # Validate ring topology constraints
+        if k >= n:
             state_manager.step_explanation.set(
                 TagList(_("select_k_not_smaller_n"))
             )
         else:
-            graph = generate_random_graph(
-                input.n_slider(), input.k_slider(), input.p_slider()
-            )
+            graph = generate_random_graph(n, k, input.p_slider())
             state_manager.graph.set(graph)
     elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
         state_manager.graph.set(generate_koot_example())
