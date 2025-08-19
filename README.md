@@ -10,7 +10,7 @@ An interactive web application built with Python Shiny that visualizes the Dijks
 - **Prediction Game**: Test your understanding by predicting algorithm outcomes
 - **Solution Quiz**: Interactive quiz after algorithm completion
 - **Tutorial System**: Guided walkthrough for new users
-- **Internationalization**: Support for multiple languages (English, German, Chinese)
+- **Internationalization**: Support for multiple languages (English, German)
 - **Admin Settings**: Password-protected configuration panel
 - **Responsive Design**: Works across different screen sizes
 
@@ -91,7 +91,6 @@ The application supports multiple languages. To add a new language:
 Current supported languages:
 - English (`en.json`)
 - German (`de.json`)
-- Chinese (`zh.json`)
 
 ## Development
 

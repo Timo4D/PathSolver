@@ -48,8 +48,7 @@ class I18n:
         """Get a dictionary of available languages with their display names."""
         languages = {
             "en": "English",
-            "de": "Deutsch",
-            "zh": "中文"
+            "de": "Deutsch"
         }
         
         # Only return languages that have translation files (or default)
