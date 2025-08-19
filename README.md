@@ -65,20 +65,31 @@ The application is configurable through `config.json`:
 {
   "settings": {
     "game_feature_enabled": true,
+    "force_game_mode": false,
+    "force_game_difficulty": null,
     "visualization_mode": "cytoscape",
+    "graph_font_size": 16,
+    "password_protected": false,
     "solution_quiz_enabled": true,
-    "admin_password": "admin123"
+    "force_solution_quiz": false,
+    "admin_password_hash": "hashed_password_value",
+    "admin_password_salt": "salt_value"
   }
 }
 ```
 
 ### Configuration Options
 
-- `game_feature_enabled`: Enable/disable prediction game
-- `visualization_mode`: Graph visualization engine ("cytoscape" or "matplotlib")
-- `solution_quiz_enabled`: Enable/disable post-algorithm quiz
-- `password_protected`: Require password for admin settings
-- `admin_password`: Password for accessing admin panel
+- `game_feature_enabled`: Enables or disables the prediction game feature where users guess algorithm outcomes
+- `force_game_mode`: Forces the game mode to be active for all sessions when set to true
+- `force_game_difficulty`: Sets a fixed difficulty level for the game (null allows user selection)
+- `visualization_mode`: Selects the graph visualization engine ("cytoscape" for interactive graphs or "matplotlib" for static plots)
+- `graph_font_size`: Controls the font size for node labels in graph visualizations
+- `password_protected`: Enables password protection for accessing admin settings panel
+- `solution_quiz_enabled`: Enables or disables the interactive quiz that appears after algorithm completion
+- `force_solution_quiz`: Forces the solution quiz to appear for all users when set to true
+- `admin_password_hash`: Hashed version of the admin password for secure authentication
+- `admin_password_salt`: Salt value used for password hashing security
 
 ## Internationalization
 

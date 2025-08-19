@@ -2,6 +2,8 @@
 
 import json
 import os
+import hashlib
+import secrets
 import pandas as pd
 import networkx as nx
 from shiny import reactive
@@ -61,7 +63,14 @@ class StateManager:
         self.solution_quiz_enabled = reactive.Value(self.config["settings"].get("solution_quiz_enabled", True))
         self.force_solution_quiz = reactive.Value(self.config["settings"].get("force_solution_quiz", False))
         self.settings_unlocked = reactive.Value(not self.config["settings"]["password_protected"])
-        self.admin_password = self.config["settings"]["admin_password"]
+        self.admin_password_hash = self.config["settings"].get("admin_password_hash")
+        self.admin_password_salt = self.config["settings"].get("admin_password_salt")
+        
+        # For backwards compatibility, if old plaintext password exists, convert it
+        if "admin_password" in self.config["settings"] and not self.admin_password_hash:
+            old_password = self.config["settings"]["admin_password"]
+            self._set_password_hash(old_password)
+            self._save_config()
         
         # Language state
         default_language = self.config["settings"].get("language", "en")
@@ -170,7 +179,8 @@ class StateManager:
                     "visualization_mode": "cytoscape",
                     "graph_font_size": 16,
                     "password_protected": False,
-                    "admin_password": "admin123",
+                    "admin_password_hash": None,
+                    "admin_password_salt": None,
                     "language": "en",
                     "solution_quiz_enabled": True,
                     "force_solution_quiz": False
@@ -179,7 +189,7 @@ class StateManager:
     
     def authenticate_settings(self, password):
         """Authenticate password for settings access."""
-        if password == self.admin_password:
+        if self._verify_password(password):
             self.settings_unlocked.set(True)
             return True
         return False
@@ -307,6 +317,76 @@ class StateManager:
             nodes = list(G.nodes)
             index_name = "Node"
         return nodes, index_name
+    
+    def _hash_password(self, password, salt=None):
+        """Hash a password with salt using SHA-256."""
+        if salt is None:
+            salt = secrets.token_hex(32)
+        
+        # Combine password and salt
+        password_bytes = password.encode('utf-8')
+        salt_bytes = salt.encode('utf-8')
+        
+        # Create hash
+        hash_obj = hashlib.sha256(password_bytes + salt_bytes)
+        password_hash = hash_obj.hexdigest()
+        
+        return password_hash, salt
+    
+    def _verify_password(self, password):
+        """Verify a password against the stored hash."""
+        if not self.admin_password_hash or not self.admin_password_salt:
+            return False
+        
+        # Hash the input password with the stored salt
+        password_hash, _ = self._hash_password(password, self.admin_password_salt)
+        
+        # Compare with stored hash
+        return password_hash == self.admin_password_hash
+    
+    def _set_password_hash(self, password):
+        """Set the password hash and salt."""
+        password_hash, salt = self._hash_password(password)
+        self.admin_password_hash = password_hash
+        self.admin_password_salt = salt
+        
+        # Update config
+        self.config["settings"]["admin_password_hash"] = password_hash
+        self.config["settings"]["admin_password_salt"] = salt
+        
+        # Remove old plaintext password if it exists
+        if "admin_password" in self.config["settings"]:
+            del self.config["settings"]["admin_password"]
+    
+    def set_admin_password(self, new_password):
+        """Set a new admin password."""
+        try:
+            self._set_password_hash(new_password)
+            self._save_config()
+            return True
+        except Exception as e:
+            print(f"Error setting password: {e}")
+            return False
+    
+    def update_password_protection(self, enabled):
+        """Update password protection setting."""
+        self.config["settings"]["password_protected"] = enabled
+        if not enabled:
+            self.settings_unlocked.set(True)
+        else:
+            self.settings_unlocked.set(False)
+        self._save_config()
+    
+    def _save_config(self):
+        """Save configuration to config.json."""
+        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(self.config, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error saving config: {e}")
+            return False
 
 
 # Global state manager instance

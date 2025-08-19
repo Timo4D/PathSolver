@@ -5,9 +5,10 @@
     "force_game_difficulty": null,
     "visualization_mode": "cytoscape",
     "graph_font_size": 16,
-    "password_protected": true,
-    "admin_password": "admin123",
+    "password_protected": false,
     "solution_quiz_enabled": true,
-    "force_solution_quiz": false
+    "force_solution_quiz": false,
+    "admin_password_hash": "bd52fc450848f007196eac1d7b99aa20ef95c87f04702ae8dcf67a440f76f8fc",
+    "admin_password_salt": "b059c4b66904d884bd6f440f64b94f78b80afd8ffa124c0aed5f01f36e87909a"
   }
 }

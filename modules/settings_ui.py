@@ -9,7 +9,24 @@ def settings_ui():
     """Create the settings page UI."""
     return ui.div(
         ui.h2("Settings", class_="mb-4"),
-        ui.output_ui("settings_content")
+        ui.output_ui("settings_content"),
+        ui.tags.script("""
+            $(document).ready(function() {
+                // Handle lock settings button click
+                $(document).on('click', '#lock_settings_with_password', function() {
+                    $('#password_form').slideDown();
+                    $(this).hide();
+                });
+                
+                // Handle cancel lock
+                $(document).on('click', '#cancel_lock', function() {
+                    $('#password_form').slideUp();
+                    $('#lock_settings_with_password').show();
+                    $('#lock_password').val('');
+                    $('#lock_confirm_password').val('');
+                });
+            });
+        """)
     )
 
 
@@ -170,15 +187,38 @@ def settings_ui_server(input, output, session):
                     class_="card p-3 mb-4"
                 ),
                 
-                # Lock settings button (only if password protected)
+                # Password protection section
                 ui.div(
-                    ui.input_action_button(
-                        "lock_settings", 
-                        "Lock Settings", 
-                        class_="btn-warning"
+                    ui.h4("Password Protection", class_="mb-3"),
+                    ui.div(
+                        ui.input_action_button(
+                            "lock_settings_with_password", 
+                            "Lock Settings with Password", 
+                            class_="btn-warning"
+                        ),
+                        ui.p(
+                            "Click to lock settings and choose a password for protection.",
+                            class_="text-muted small mt-2"
+                        ),
+                        class_="text-center"
                     ),
-                    class_="text-center mt-4"
-                ) if state_manager.config["settings"]["password_protected"] else None,
+                    # Hidden password form that shows when lock button is clicked
+                    ui.div(
+                        ui.hr(),
+                        ui.h5("Set Password for Settings", class_="mb-3"),
+                        ui.input_password("lock_password", "Choose Password:", placeholder="Enter password"),
+                        ui.input_password("lock_confirm_password", "Confirm Password:", placeholder="Confirm password"),
+                        ui.output_ui("lock_password_message"),
+                        ui.div(
+                            ui.input_action_button("confirm_lock", "Lock Settings", class_="btn-warning me-2"),
+                            ui.input_action_button("cancel_lock", "Cancel", class_="btn-secondary"),
+                            class_="mt-3"
+                        ),
+                        id="password_form",
+                        style="display: none;"
+                    ),
+                    class_="card p-3 mb-4"
+                ),
                 
                 # Current settings display
                 ui.div(
@@ -192,6 +232,12 @@ def settings_ui_server(input, output, session):
     @output
     @render.ui
     def auth_message():
+        return ui.div()
+    
+    # Lock password message output
+    @output
+    @render.ui
+    def lock_password_message():
         return ui.div()
     
     # Current settings display
@@ -239,16 +285,57 @@ def settings_ui_server(input, output, session):
                     duration=3
                 )
     
-    # Lock settings handler
+    # Confirm lock with password handler
     @reactive.Effect
-    @reactive.event(input.lock_settings)
-    def handle_lock_settings():
-        state_manager.lock_settings()
-        ui.notification_show(
-            "Settings have been locked.", 
-            type="info",
-            duration=3
-        )
+    @reactive.event(input.confirm_lock)
+    def handle_confirm_lock():
+        new_password = input.lock_password()
+        confirm_password = input.lock_confirm_password()
+        
+        if not new_password:
+            ui.notification_show(
+                "Please enter a password.", 
+                type="error",
+                duration=3
+            )
+            return
+            
+        if new_password != confirm_password:
+            ui.notification_show(
+                "Passwords do not match.", 
+                type="error",
+                duration=3
+            )
+            return
+            
+        if len(new_password) < 4:
+            ui.notification_show(
+                "Password must be at least 4 characters long.", 
+                type="error",
+                duration=3
+            )
+            return
+        
+        # Set the password and enable protection
+        if state_manager.set_admin_password(new_password):
+            state_manager.update_password_protection(True)
+            state_manager.lock_settings()
+            
+            # Clear password fields
+            ui.update_text("lock_password", value="")
+            ui.update_text("lock_confirm_password", value="")
+            
+            ui.notification_show(
+                "Settings have been locked with password protection.", 
+                type="success",
+                duration=3
+            )
+        else:
+            ui.notification_show(
+                "Failed to set password. Please try again.", 
+                type="error",
+                duration=3
+            )
     
     # Game feature toggle handler
     @reactive.Effect
