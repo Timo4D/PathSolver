@@ -369,6 +369,11 @@ def render_graph_generator_settings(graph_type):
                 MAX_REWIRE_PROB,
                 DEFAULT_REWIRE_PROB,
             ),
+            ui.download_button(
+                "download_edgelist",
+                _("export_edgelist"),
+                style="width: 100%; margin-top: 10px;"
+            )
         )
     elif graph_type == GraphType.EDGE_LIST.value:
         return ui.TagList(
@@ -378,6 +383,11 @@ def render_graph_generator_settings(graph_type):
                 "0 1 10\n1 2 10\n2 0 20",
                 rows=10,
                 autoresize=True,
+            ),
+            ui.download_button(
+                "download_edgelist",
+                _("export_edgelist"),
+                style="width: 100%; margin-top: 10px;"
             )
         )
     elif graph_type == GraphType.CSV_FILE.value:

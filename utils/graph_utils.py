@@ -324,6 +324,34 @@ def convert_graph_to_edgelist(graph):
     edge_list_lines = []
     for u, v, data in graph.edges(data=True):
         weight = data.get('weight', 1)
-        edge_list_lines.append(f"{u} {v} {weight}")
+        # Ensure all values are integers
+        u_int = int(u)
+        v_int = int(v)
+        weight_int = int(weight)
+        edge_list_lines.append(f"{u_int} {v_int} {weight_int}")
 
     return "\n".join(edge_list_lines)
+
+
+def convert_graph_to_csv(graph):
+    """Convert a NetworkX graph to CSV format string.
+
+    Args:
+        graph: NetworkX Graph object
+
+    Returns:
+        String in CSV format with headers: "source,target,weight"
+    """
+    if not graph or len(graph.edges) == 0:
+        return "source,target,weight\n"
+
+    csv_lines = ["source,target,weight"]
+    for u, v, data in graph.edges(data=True):
+        weight = data.get('weight', 1)
+        # Ensure all values are integers
+        u_int = int(u)
+        v_int = int(v)
+        weight_int = int(weight)
+        csv_lines.append(f"{u_int},{v_int},{weight_int}")
+
+    return "\n".join(csv_lines)

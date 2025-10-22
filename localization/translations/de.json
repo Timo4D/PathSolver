@@ -41,6 +41,7 @@
   "rewiring_probability": "Wahrscheinlichkeit für das Umverbinden jeder Kante",
   "edge_list": "Kantenliste",
   "upload_edge_list": "Kantenliste hochladen",
+  "export_edgelist": "📥 Als CSV exportieren",
   "invalid_input_tooltip": "Ihre Eingabe ist ungültig",
   
   "game_difficulty_forced": "🎯 Spielschwierigkeit (Von Dozent festgelegt)",

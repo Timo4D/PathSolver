@@ -18,8 +18,8 @@ from modules.algorithm_logic import DijkstraStepHandler
 from modules.cytoscape.graph_component import render_cytoscape
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal_server
-from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
-from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout, convert_graph_to_edgelist
+from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list, generate_from_csv
+from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout, convert_graph_to_edgelist, convert_graph_to_csv
 
 
 def graph_ui():
@@ -378,9 +378,17 @@ def graph_ui_server(input, output, session):
         edge_list = parsed_edge_list()
         if edge_list is not None:
             try:
-                with open(DEFAULT_EDGE_LIST_PATH, 'r') as file:
-                    edge_list_str = file.read()
-                result = generate_from_edge_list(edge_list_str)
+                with open(edge_list, 'r') as file:
+                    file_content = file.read()
+
+                # Detect if file is CSV format (contains commas) or edge list format (spaces)
+                if ',' in file_content:
+                    # CSV format
+                    result = generate_from_csv(file_content)
+                else:
+                    # Edge list format
+                    result = generate_from_edge_list(file_content)
+
                 if isinstance(result, str):
                     state_manager.invalid_edge_list.set(True)
                     state_manager.step_explanation.set(TagList(result))
@@ -390,7 +398,7 @@ def graph_ui_server(input, output, session):
             except FileNotFoundError:
                 state_manager.invalid_edge_list.set(True)
                 state_manager.step_explanation.set(
-                    TagList(f"Edge list file not found: {DEFAULT_EDGE_LIST_PATH}")
+                    TagList(f"File not found: {edge_list}")
                 )
 
     @output
@@ -721,6 +729,16 @@ def graph_ui_server(input, output, session):
                 edge_list_str = convert_graph_to_edgelist(graph)
                 # Update the text area input
                 ui.update_text_area("edge_list_input", value=edge_list_str)
+
+    @render.download(filename="graph_edgelist.csv")
+    def download_edgelist():
+        """Download current graph as CSV file."""
+        graph = state_manager.graph.get()
+        if graph:
+            csv_content = convert_graph_to_csv(graph)
+            yield csv_content
+        else:
+            yield "source,target,weight\n"
 
     # Initialize tutorial modal server and get tutorial object
     tutorial = tutorial_modal_server(input, output, session)
