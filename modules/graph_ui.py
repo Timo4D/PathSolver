@@ -19,7 +19,7 @@ from modules.cytoscape.graph_component import render_cytoscape
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal_server
 from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list
-from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout
+from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout, convert_graph_to_edgelist
 
 
 def graph_ui():
@@ -689,18 +689,18 @@ def graph_ui_server(input, output, session):
             target_id = int(data["target"])
             new_weight = float(data["weight"])
             graph = state_manager.graph.get()
-            
+
             if graph and graph.has_edge(source_id, target_id):
                 # Create a copy of the graph and update the edge weight
                 graph_copy = graph.copy()
                 graph_copy[source_id][target_id]['weight'] = new_weight
-                
+
                 # Update the graph in state manager
                 state_manager.graph.set(graph_copy)
-                
+
                 # Reset algorithm state since edge weights changed
                 state_manager.reset_algorithm_state()
-                
+
                 state_manager.step_explanation.set(
                     TagList(_("updated_edge_weight").format(source=source_id, target=target_id, weight=new_weight))
                 )
@@ -708,6 +708,19 @@ def graph_ui_server(input, output, session):
                 state_manager.step_explanation.set(
                     TagList(_("cannot_update_nonexistent").format(source=source_id, target=target_id))
                 )
+
+    @reactive.Effect
+    @reactive.event(state_manager.graph)
+    def update_edge_list_from_graph():
+        """Update edge list input when graph changes via Cytoscape."""
+        # Only update if user is in edge list mode
+        if input.selectize_graph() == GraphType.EDGE_LIST.value:
+            graph = state_manager.graph.get()
+            if graph and len(graph.edges) > 0:
+                # Convert graph to edge list format
+                edge_list_str = convert_graph_to_edgelist(graph)
+                # Update the text area input
+                ui.update_text_area("edge_list_input", value=edge_list_str)
 
     # Initialize tutorial modal server and get tutorial object
     tutorial = tutorial_modal_server(input, output, session)

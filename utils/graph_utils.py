@@ -307,3 +307,23 @@ def get_cytoscape_layout():
     return {
         "name": "cose"
     }
+
+
+def convert_graph_to_edgelist(graph):
+    """Convert a NetworkX graph back to edge list format string.
+
+    Args:
+        graph: NetworkX Graph object
+
+    Returns:
+        String in format: "node1 node2 weight"
+    """
+    if not graph or len(graph.edges) == 0:
+        return ""
+
+    edge_list_lines = []
+    for u, v, data in graph.edges(data=True):
+        weight = data.get('weight', 1)
+        edge_list_lines.append(f"{u} {v} {weight}")
+
+    return "\n".join(edge_list_lines)

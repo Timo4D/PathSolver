@@ -10,6 +10,13 @@ def generate_random_graph(n, k, p):
     for (u, v) in G.edges():
         G[u][v]['weight'] = random.randint(1, 100)
 
+    # Generate layout positions for Cytoscape visualization
+    pos = nx.spring_layout(G, seed=42, scale=200)
+    # Add positions as node attributes
+    for node, (x, y) in pos.items():
+        G.nodes[node]['x'] = x
+        G.nodes[node]['y'] = y
+
     return G
 
 
@@ -29,6 +36,14 @@ def generate_koot_example():
         G.add_edge(u, v, weight=d)
 
     nx.set_node_attributes(G, node_labels, "label")
+
+    # Generate layout positions for Cytoscape visualization
+    pos = nx.spring_layout(G, seed=42, scale=200)
+    # Add positions as node attributes
+    for node, (x, y) in pos.items():
+        G.nodes[node]['x'] = x
+        G.nodes[node]['y'] = y
+
     return G
 
 
@@ -59,6 +74,12 @@ def generate_from_edge_list(edgelist: str):
         print(line)
 
     if nx.is_connected(G):
+        # Generate layout positions for Cytoscape visualization
+        pos = nx.spring_layout(G, seed=42, scale=200)
+        # Add positions as node attributes
+        for node, (x, y) in pos.items():
+            G.nodes[node]['x'] = x
+            G.nodes[node]['y'] = y
         return G
     else:
         return "Graph is not connected"
