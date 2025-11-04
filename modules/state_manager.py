@@ -78,6 +78,12 @@ class StateManager:
         # Initialize i18n with the configured language immediately (non-reactively)
         set_language(default_language)
         self._language_initialized = True
+
+        # Task mode state
+        self.task_mode_enabled = reactive.Value(self.config["settings"].get("task_mode_enabled", False))
+        self.current_task_index = reactive.Value(0)  # Index in tasks array
+        self.completed_tasks = reactive.Value([])  # List of completed task numbers
+        self.tasks = self.config.get("tasks", [])  # Pre-defined tasks list
     
     def save_state(self):
         """Save current state for undo functionality."""
@@ -376,7 +382,77 @@ class StateManager:
         else:
             self.settings_unlocked.set(False)
         self._save_config()
-    
+
+    # Task mode methods
+    def get_current_task(self):
+        """Get the current task definition."""
+        if not self.task_mode_enabled.get() or not self.tasks:
+            return None
+
+        idx = self.current_task_index.get()
+        if idx < len(self.tasks):
+            return self.tasks[idx]
+        return None
+
+    def get_start_node(self, input_obj):
+        """Get start node - from task if in task mode, otherwise from input."""
+        if self.is_task_mode_active():
+            task = self.get_current_task()
+            return task['start_node'] if task else 0
+        else:
+            try:
+                value = input_obj.start_node() if hasattr(input_obj, 'start_node') else None
+                return value if value is not None else 0
+            except:
+                return 0
+
+    def get_target_node(self, input_obj):
+        """Get target node - from task if in task mode, otherwise from input."""
+        if self.is_task_mode_active():
+            task = self.get_current_task()
+            return task['target_node'] if task else 1
+        else:
+            try:
+                value = input_obj.target_node() if hasattr(input_obj, 'target_node') else None
+                return value if value is not None else 1
+            except:
+                return 1
+
+    def advance_to_next_task(self):
+        """Advance to the next task."""
+        current_task = self.get_current_task()
+        if current_task:
+            # Mark current task as completed
+            task_num = current_task["task_number"]
+            completed = self.completed_tasks.get()
+            if task_num not in completed:
+                completed.append(task_num)
+                self.completed_tasks.set(completed)
+
+        # Move to next task
+        next_idx = self.current_task_index.get() + 1
+        if next_idx < len(self.tasks):
+            self.current_task_index.set(next_idx)
+            return True
+        else:
+            # All tasks completed - disable task mode
+            self.task_mode_enabled.set(False)
+            return False
+
+    def is_task_mode_active(self):
+        """Check if task mode is currently active."""
+        return self.task_mode_enabled.get() and self.current_task_index.get() < len(self.tasks)
+
+    def get_total_tasks(self):
+        """Get total number of tasks."""
+        return len(self.tasks)
+
+    def reset_task_mode(self):
+        """Reset task mode to start from first task."""
+        self.current_task_index.set(0)
+        self.completed_tasks.set([])
+        self.task_mode_enabled.set(self.config["settings"].get("task_mode_enabled", False))
+
     def _save_config(self):
         """Save configuration to config.json."""
         config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "config.json")

@@ -18,7 +18,10 @@ from modules.algorithm_logic import DijkstraStepHandler
 from modules.cytoscape.graph_component import render_cytoscape
 from modules.solution_quiz import render_solution_quiz
 from modules.tutorial_modal import tutorial_modal_server
-from utils.graph_generators import generate_random_graph, generate_koot_example, generate_from_edge_list, generate_from_csv
+from utils.graph_generators import (
+    generate_random_graph, generate_koot_example, generate_from_edge_list, generate_from_csv,
+    generate_simple_path, generate_grid_graph, generate_european_cities
+)
 from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout, convert_graph_to_edgelist, convert_graph_to_csv
 
 
@@ -31,7 +34,38 @@ def graph_ui_server(input, output, session):
     """Main server logic for the graph UI."""
     # Initialize algorithm handler
     algorithm_handler = DijkstraStepHandler(state_manager)
-    
+
+    # Load task graph on initialization if in task mode
+    @reactive.Effect
+    @reactive.event(state_manager.current_task_index, state_manager.task_mode_enabled)
+    def load_task_graph():
+        """Load graph based on current task when in task mode, or default graph in free mode."""
+        if state_manager.is_task_mode_active():
+            task = state_manager.get_current_task()
+            if task:
+                # Generate graph based on task configuration
+                if task["graph_type"] == "koot_example":
+                    graph = generate_koot_example()
+                elif task["graph_type"] == "simple_path":
+                    graph = generate_simple_path()
+                elif task["graph_type"] == "grid_graph":
+                    graph = generate_grid_graph()
+                elif task["graph_type"] == "european_cities":
+                    graph = generate_european_cities()
+                elif task["graph_type"] == "random":
+                    params = task.get("params", {"n": 10, "k": 4, "p": 0.3})
+                    graph = generate_random_graph(params["n"], params["k"], params["p"])
+                else:
+                    # Default fallback
+                    graph = generate_koot_example()
+
+                state_manager.graph.set(graph)
+        else:
+            # In free mode, ensure we have a graph loaded (use Germany example as default)
+            if state_manager.graph.get() is None or not state_manager.graph.get().nodes():
+                graph = generate_koot_example()
+                state_manager.graph.set(graph)
+
     @output
     @render.ui
     def render_solution_quiz_ui():
@@ -112,37 +146,76 @@ def graph_ui_server(input, output, session):
         """Render algorithm explanation that updates when language changes."""
         from modules.ui_components import algorithm_explanation_ui
         return algorithm_explanation_ui()
-    
+
     @output
     @render.ui
-    @reactive.event(state_manager.current_language)
+    @reactive.event(state_manager.task_mode_enabled, state_manager.current_task_index)
+    def dynamic_tutorial_button():
+        """Dynamic tutorial button - hidden in task mode."""
+        if state_manager.is_task_mode_active():
+            return ui.div()  # Hide tutorial button in task mode
+        else:
+            from modules.tutorial_modal import tutorial_modal
+            return tutorial_modal()
+
+    @output
+    @render.ui
+    @reactive.event(state_manager.current_language, state_manager.task_mode_enabled, state_manager.current_task_index)
     def dynamic_graph_selection():
-        """Dynamic graph selection UI that updates with language."""
-        from modules.ui_components import graph_selection_ui
-        return graph_selection_ui()
+        """Dynamic graph selection UI that updates with language or task mode."""
+        # If in task mode, show task progress instead of graph selector
+        if state_manager.is_task_mode_active():
+            task = state_manager.get_current_task()
+            total_tasks = state_manager.get_total_tasks()
+            current_num = state_manager.current_task_index.get() + 1
+
+            return ui.div(
+                ui.h4(f"Task {current_num} of {total_tasks}", style="margin-bottom: 10px;"),
+                ui.p(task['description'], style="font-size: 14px; color: #666;"),
+                style="padding: 15px; background-color: #f0f8ff; border-radius: 5px; border-left: 4px solid #2196F3;"
+            )
+        else:
+            from modules.ui_components import graph_selection_ui
+            return graph_selection_ui()
     
     @output
     @render.ui
-    @reactive.event(state_manager.current_language)
+    @reactive.event(state_manager.current_language, state_manager.task_mode_enabled, state_manager.current_task_index)
     def dynamic_start_node():
-        """Dynamic start node input that updates with language."""
-        return ui.input_numeric(
-            "start_node",
-            ui.span(_("start_node"), ui.output_ui("start_node_error_message")),
-            value=DEFAULT_START_NODE,
-            min=0,
-        )
-    
+        """Dynamic start node input that updates with language or task mode."""
+        if state_manager.is_task_mode_active():
+            task = state_manager.get_current_task()
+            return ui.div(
+                ui.strong(_("start_node")),
+                ui.p(str(task['start_node']), style="font-size: 18px; margin: 5px 0; color: #2196F3;"),
+                style="padding: 10px; background-color: #f5f5f5; border-radius: 5px;"
+            )
+        else:
+            return ui.input_numeric(
+                "start_node",
+                ui.span(_("start_node"), ui.output_ui("start_node_error_message")),
+                value=DEFAULT_START_NODE,
+                min=0,
+            )
+
     @output
     @render.ui
-    @reactive.event(state_manager.current_language)
+    @reactive.event(state_manager.current_language, state_manager.task_mode_enabled, state_manager.current_task_index)
     def dynamic_target_node():
-        """Dynamic target node input that updates with language."""
-        return ui.input_numeric(
-            "target_node",
-            ui.span(_("target_node"), ui.output_ui("target_node_error_message")),
-            value=DEFAULT_TARGET_NODE,
-            min=0,
+        """Dynamic target node input that updates with language or task mode."""
+        if state_manager.is_task_mode_active():
+            task = state_manager.get_current_task()
+            return ui.div(
+                ui.strong(_("target_node")),
+                ui.p(str(task['target_node']), style="font-size: 18px; margin: 5px 0; color: #2196F3;"),
+                style="padding: 10px; background-color: #f5f5f5; border-radius: 5px;"
+            )
+        else:
+            return ui.input_numeric(
+                "target_node",
+                ui.span(_("target_node"), ui.output_ui("target_node_error_message")),
+                value=DEFAULT_TARGET_NODE,
+                min=0,
         )
     
     @output
@@ -181,13 +254,14 @@ def graph_ui_server(input, output, session):
     @output
     @render.data_frame
     @reactive.event(
-        state_manager.distances_df, state_manager.step_counter, 
-        input.start_node, input.target_node, state_manager.game_difficulty,
-        state_manager.force_game_difficulty, state_manager.nodes_visited, state_manager.current_node
+        state_manager.distances_df, state_manager.step_counter,
+        state_manager.game_difficulty,
+        state_manager.force_game_difficulty, state_manager.nodes_visited, state_manager.current_node,
+        state_manager.task_mode_enabled, state_manager.current_task_index
     )
     def display_distances():
         from modules.ui_components import get_filtered_distances_for_difficulty
-        
+
         # Apply difficulty-based filtering to distances table
         original_df = state_manager.distances_df.get()
         filtered_df = get_filtered_distances_for_difficulty(
@@ -196,17 +270,35 @@ def graph_ui_server(input, output, session):
             state_manager.nodes_visited.get(),
             state_manager.current_node.get()
         )
-        
+
         return render_distances_table(
             filtered_df,
-            input.start_node(),
-            input.target_node()
+            state_manager.get_start_node(input),
+            state_manager.get_target_node(input)
         )
 
     @reactive.Effect
-    @reactive.event(input.target_node, input.start_node)
-    def reset_dijkstra():
-        state_manager.reset_algorithm_state()
+    @reactive.event(state_manager.current_task_index)
+    def reset_dijkstra_on_task_change():
+        """Reset algorithm state when task changes."""
+        if state_manager.is_task_mode_active():
+            state_manager.reset_algorithm_state()
+
+    @reactive.Effect
+    def reset_dijkstra_on_node_change():
+        """Reset algorithm when start/target nodes change in free mode."""
+        # Only listen to input changes in free mode
+        if not state_manager.is_task_mode_active():
+            try:
+                # Access the inputs to create reactive dependency
+                if hasattr(input, 'start_node'):
+                    _ = input.start_node()
+                if hasattr(input, 'target_node'):
+                    _ = input.target_node()
+                # Reset the algorithm
+                state_manager.reset_algorithm_state()
+            except:
+                pass
 
     @reactive.Effect
     def initialize_distances():
@@ -214,8 +306,15 @@ def graph_ui_server(input, output, session):
 
     @output
     @render.ui
+    @reactive.event(state_manager.task_mode_enabled, state_manager.current_task_index)
     def graph_generator_settings():
-        return render_graph_generator_settings(input.selectize_graph())
+        """Render graph generator settings - hidden in task mode."""
+        if state_manager.is_task_mode_active():
+            return ui.div()  # Hide settings in task mode
+
+        # Get graph type, default to KOOT_EXAMPLE if None (when transitioning from task mode)
+        graph_type = input.selectize_graph() if input.selectize_graph() is not None else GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value
+        return render_graph_generator_settings(graph_type)
 
     @output
     @render.ui
@@ -404,10 +503,11 @@ def graph_ui_server(input, output, session):
     @output
     @render_cytoscape
     @reactive.event(
-        state_manager.graph, input.start_node, input.target_node, 
+        state_manager.graph,
         state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
         state_manager.prediction_candidates, state_manager.visualization_mode, state_manager.game_difficulty,
-        state_manager.force_game_difficulty, state_manager.graph_font_size
+        state_manager.force_game_difficulty, state_manager.graph_font_size,
+        state_manager.task_mode_enabled, state_manager.current_task_index
     )
     def cytoscape_graph():
         """Render the graph using Cytoscape.js."""
@@ -419,7 +519,7 @@ def graph_ui_server(input, output, session):
                 "style": get_cytoscape_styles(state_manager.graph_font_size()),
                 "layout": get_cytoscape_layout()
             }
-            
+
         graph = state_manager.graph.get()
         if not graph:
             # Return empty structure if no graph
@@ -428,19 +528,19 @@ def graph_ui_server(input, output, session):
                 "style": get_cytoscape_styles(state_manager.graph_font_size()),
                 "layout": get_cytoscape_layout()
             }
-            
+
         elements = convert_graph_to_cytoscape(
             graph,
             current_node=state_manager.current_node.get(),
-            start_node=input.start_node(),
-            target_node=input.target_node(),
+            start_node=state_manager.get_start_node(input),
+            target_node=state_manager.get_target_node(input),
             nodes_visited=state_manager.nodes_visited.get(),
             current_edges=state_manager.current_edges.get(),
             distances=state_manager.distances_df.get(),
             prediction_candidates=state_manager.prediction_candidates.get(),
             game_difficulty=state_manager.get_effective_game_difficulty()
         )
-        
+
         return {
             "elements": elements,
             "style": get_cytoscape_styles(state_manager.graph_font_size()),
@@ -450,35 +550,31 @@ def graph_ui_server(input, output, session):
     @output
     @render.plot
     @reactive.event(
-        state_manager.graph, input.start_node, input.target_node, 
+        state_manager.graph,
         state_manager.current_node, state_manager.current_edges, state_manager.distances_df,
-        state_manager.visualization_mode, input.layout_seed
+        state_manager.visualization_mode, input.layout_seed,
+        state_manager.task_mode_enabled, state_manager.current_task_index
     )
     def matplotlib_graph():
         """Render the graph using Matplotlib."""
         # Only render if visualization mode is matplotlib
         if state_manager.visualization_mode() != "matplotlib":
             return None
-            
+
         graph = state_manager.graph.get()
         if not graph:
             return None
-            
-        start_node = None
-        target_node = None
-        
-        # Parse start and target nodes
-        if input.start_node():
-            try:
-                start_node = int(input.start_node())
-            except (ValueError, TypeError):
-                start_node = input.start_node()
-        
-        if input.target_node():
-            try:
-                target_node = int(input.target_node())
-            except (ValueError, TypeError):
-                target_node = input.target_node()
+
+        # Get start and target nodes using helper functions
+        start_node = state_manager.get_start_node(input)
+        target_node = state_manager.get_target_node(input)
+
+        # Ensure they're integers if possible
+        try:
+            start_node = int(start_node) if start_node is not None else None
+            target_node = int(target_node) if target_node is not None else None
+        except (ValueError, TypeError):
+            pass
         
         # Get layout seed from input or use default
         seed = input.layout_seed() if input.layout_seed() is not None else 42
@@ -500,6 +596,10 @@ def graph_ui_server(input, output, session):
     @reactive.event(input.cytoscape_graph_set_start_node)
     def handle_set_start_node():
         """Handle setting start node from context menu."""
+        # Disable context menu in task mode
+        if state_manager.is_task_mode_active():
+            return
+
         data = input.cytoscape_graph_set_start_node()
         if data and "id" in data:
             node_id = int(data["id"])
@@ -510,10 +610,14 @@ def graph_ui_server(input, output, session):
                 # Reset algorithm state when start node changes
                 state_manager.reset_algorithm_state()
 
-    @reactive.Effect  
+    @reactive.Effect
     @reactive.event(input.cytoscape_graph_set_target_node)
     def handle_set_target_node():
         """Handle setting target node from context menu."""
+        # Disable context menu in task mode
+        if state_manager.is_task_mode_active():
+            return
+
         data = input.cytoscape_graph_set_target_node()
         if data and "id" in data:
             node_id = int(data["id"])
@@ -528,6 +632,10 @@ def graph_ui_server(input, output, session):
     @reactive.event(input.cytoscape_graph_delete_node)
     def handle_delete_node():
         """Handle deleting a node from context menu."""
+        # Disable context menu in task mode
+        if state_manager.is_task_mode_active():
+            return
+
         data = input.cytoscape_graph_delete_node()
         if data and "id" in data:
             node_id = int(data["id"])
@@ -547,14 +655,15 @@ def graph_ui_server(input, output, session):
                 # Update the graph in state manager
                 state_manager.graph.set(graph_copy)
                 
-                # Clear start/target if they were the deleted node
-                current_start = input.start_node()
-                current_target = input.target_node()
-                
-                if current_start and int(current_start) == node_id:
-                    ui.update_selectize("start_node", selected="")
-                if current_target and int(current_target) == node_id:
-                    ui.update_selectize("target_node", selected="")
+                # Clear start/target if they were the deleted node (only in free mode)
+                if not state_manager.is_task_mode_active():
+                    current_start = state_manager.get_start_node(input)
+                    current_target = state_manager.get_target_node(input)
+
+                    if current_start and int(current_start) == node_id:
+                        ui.update_selectize("start_node", selected="")
+                    if current_target and int(current_target) == node_id:
+                        ui.update_selectize("target_node", selected="")
                 
                 # Reset algorithm state
                 state_manager.reset_algorithm_state()
@@ -563,6 +672,10 @@ def graph_ui_server(input, output, session):
     @reactive.event(input.cytoscape_graph_delete_edge)
     def handle_delete_edge():
         """Handle deleting an edge from context menu."""
+        # Disable context menu in task mode
+        if state_manager.is_task_mode_active():
+            return
+
         data = input.cytoscape_graph_delete_edge()
         if data and "source" in data and "target" in data:
             source_id = int(data["source"])
@@ -591,9 +704,13 @@ def graph_ui_server(input, output, session):
     @reactive.event(input.cytoscape_graph_add_node)
     def handle_add_node():
         """Handle adding a new node from context menu."""
+        # Disable context menu in task mode
+        if state_manager.is_task_mode_active():
+            return
+
         data = input.cytoscape_graph_add_node()
         print(f"Debug: Received add_node data: {data}")  # Debug output
-        
+
         if data and "x" in data and "y" in data:
             graph = state_manager.graph.get()
             if graph:
@@ -794,6 +911,10 @@ def graph_ui_server(input, output, session):
 
 def _update_graph_based_on_selection(input):
     """Update graph based on user selection."""
+    # Skip if in task mode - graph is controlled by tasks
+    if state_manager.is_task_mode_active():
+        return
+
     if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
         n = input.n_slider()
         k = input.k_slider()

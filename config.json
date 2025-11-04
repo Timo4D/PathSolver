@@ -1,14 +1,53 @@
 {
   "settings": {
     "game_feature_enabled": true,
-    "force_game_mode": false,
+    "force_game_mode": true,
     "force_game_difficulty": null,
     "visualization_mode": "cytoscape",
     "graph_font_size": 16,
-    "password_protected": false,
+    "password_protected": true,
     "solution_quiz_enabled": true,
-    "force_solution_quiz": false,
-    "admin_password_hash": "bd52fc450848f007196eac1d7b99aa20ef95c87f04702ae8dcf67a440f76f8fc",
-    "admin_password_salt": "b059c4b66904d884bd6f440f64b94f78b80afd8ffa124c0aed5f01f36e87909a"
-  }
+    "force_solution_quiz": true,
+    "admin_password_hash": "9930b0697fc70a9378ee4dc77cc4ecc6781e76b1be52a8f755f73d69ce8c66be",
+    "admin_password_salt": "520364fe4572504e618ba6a696305a230ef60464bf102e03be520c991c814090",
+    "task_mode_enabled": true
+  },
+  "tasks": [
+    {
+      "task_number": 1,
+      "graph_type": "simple_path",
+      "start_node": 0,
+      "target_node": 3,
+      "description": "Task 1: Warm-up - Find shortest path from A to D"
+    },
+    {
+      "task_number": 2,
+      "graph_type": "grid_graph",
+      "start_node": 0,
+      "target_node": 8,
+      "description": "Task 2: Grid - Find shortest path from node 1 to 9"
+    },
+    {
+      "task_number": 3,
+      "graph_type": "koot_example",
+      "start_node": 0,
+      "target_node": 5,
+      "description": "Task 3: Germany - Find shortest path from Berlin to Kiel"
+    },
+    {
+      "task_number": 4,
+      "graph_type": "european_cities",
+      "start_node": 0,
+      "target_node": 7,
+      "description": "Task 4: Europe - Find shortest path from Berlin to Athens"
+    },
+    {
+      "task_number": 5,
+      "graph_type": "random",
+      "params": {"n": 10, "k": 4, "p": 0.3},
+      "start_node": 0,
+      "target_node": 9,
+      "description": "Task 5: Challenge - Random graph with 10 nodes"
+    }
+  ]
 }

@@ -85,6 +85,94 @@ def generate_from_edge_list(edgelist: str):
         return "Graph is not connected"
 
 
+def generate_simple_path():
+    """Generate a simple path graph for beginners."""
+    edges = [
+        (0, 1, 5), (1, 2, 3), (2, 3, 7), (0, 2, 10), (1, 3, 8)
+    ]
+
+    node_labels = {
+        0: "A", 1: "B", 2: "C", 3: "D"
+    }
+
+    G = nx.Graph()
+    for u, v, weight in edges:
+        G.add_edge(u, v, weight=weight)
+
+    nx.set_node_attributes(G, node_labels, "label")
+
+    # Generate layout positions for Cytoscape visualization
+    pos = nx.spring_layout(G, seed=42, scale=200)
+    for node, (x, y) in pos.items():
+        G.nodes[node]['x'] = x
+        G.nodes[node]['y'] = y
+
+    return G
+
+
+def generate_grid_graph():
+    """Generate a small grid graph."""
+    edges = [
+        (0, 1, 10), (1, 2, 8),
+        (0, 3, 12), (1, 4, 15), (2, 5, 9),
+        (3, 4, 7), (4, 5, 11),
+        (3, 6, 14), (4, 7, 6), (5, 8, 13),
+        (6, 7, 10), (7, 8, 8)
+    ]
+
+    node_labels = {
+        0: "0", 1: "1", 2: "2",
+        3: "3", 4: "4", 5: "5",
+        6: "6", 7: "7", 8: "8"
+    }
+
+    G = nx.Graph()
+    for u, v, weight in edges:
+        G.add_edge(u, v, weight=weight)
+
+    nx.set_node_attributes(G, node_labels, "label")
+
+    # Generate layout positions for Cytoscape visualization
+    pos = nx.spring_layout(G, seed=42, scale=200)
+    for node, (x, y) in pos.items():
+        G.nodes[node]['x'] = x
+        G.nodes[node]['y'] = y
+
+    return G
+
+
+def generate_european_cities():
+    """Generate a graph with European cities."""
+    edges = [
+        (0, 1, 1050), (0, 2, 580), (0, 3, 190),
+        (1, 4, 1300), (1, 5, 880),
+        (2, 3, 500), (2, 6, 340),
+        (3, 6, 420),
+        (4, 5, 520), (4, 7, 750),
+        (5, 6, 610), (5, 7, 900),
+        (6, 7, 680)
+    ]
+
+    node_labels = {
+        0: "Berlin", 1: "Madrid", 2: "Paris", 3: "Prague",
+        4: "Rome", 5: "Vienna", 6: "Zurich", 7: "Athens"
+    }
+
+    G = nx.Graph()
+    for u, v, weight in edges:
+        G.add_edge(u, v, weight=weight)
+
+    nx.set_node_attributes(G, node_labels, "label")
+
+    # Generate layout positions for Cytoscape visualization
+    pos = nx.spring_layout(G, seed=42, scale=200)
+    for node, (x, y) in pos.items():
+        G.nodes[node]['x'] = x
+        G.nodes[node]['y'] = y
+
+    return G
+
+
 def generate_from_csv(csv_content: str):
     """Generate graph from CSV format.
 

@@ -36,10 +36,7 @@ def main_ui():
         ui.output_ui("tutorial_styles"),  # Add tutorial styles
         ui.layout_sidebar(
             ui.sidebar(
-                tutorial_modal(),
-                ui.output_ui("dynamic_game_toggle"),
-                ui.output_ui("dynamic_solution_quiz_toggle"),
-                ui.output_ui("game_difficulty_selector"),
+                ui.output_ui("dynamic_tutorial_button"),
                 ui.output_ui("dynamic_graph_selection"),
                 ui.output_ui("graph_generator_settings"),
                 ui.output_ui("dynamic_start_node"),
@@ -397,6 +394,9 @@ def render_graph_generator_settings(graph_type):
                 ui.span(_("upload_edge_list"), ui.output_ui("edge_list_error_message")),
             )
         )
+    else:
+        # For KOOT_EXAMPLE and any other cases, return empty div (no settings needed)
+        return ui.div()
 
 
 def render_error_tooltip(has_error):

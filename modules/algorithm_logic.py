@@ -42,7 +42,7 @@ class DijkstraStepHandler:
         elif step == STEP_FIND_NEXT_NODE:
             self.set_new_current_node(df, G, input)
             if not self.state.solution.get():
-                solution = dijkstra_solution(G, input.start_node(), input.target_node())
+                solution = dijkstra_solution(G, self.state.get_start_node(input), self.state.get_target_node(input))
                 self.state.solution.set(solution)
         elif step == STEP_SHOW_SOLUTION:
             self.show_solution(self.state.solution.get())
@@ -74,8 +74,8 @@ class DijkstraStepHandler:
             return
         
         if not df.empty:
-            start_node_raw = input.start_node()
-            target_node_raw = input.target_node()
+            start_node_raw = self.state.get_start_node(input)
+            target_node_raw = self.state.get_target_node(input)
             
             # Always clear errors first
             self.state.start_node_error.set(False)
@@ -286,14 +286,14 @@ class DijkstraStepHandler:
         # Normal algorithm flow - set the current node
         self.state.current_node.set(min_cost_node)
 
-        if self.state.current_node.get() == input.target_node():
+        if self.state.current_node.get() == self.state.get_target_node(input):
             # Check if solution quiz should be shown
             # Quiz is shown if: admin enabled it AND (admin forced it OR user enabled it)
             quiz_should_show = self.state.solution_quiz_enabled.get() and (
                 self.state.force_solution_quiz.get() or  # Admin forced it on
                 (input.solution_quiz_enabled() if input.solution_quiz_enabled() is not None else True)  # User choice (default True)
             )
-            
+
             if quiz_should_show:
                 # Show quiz input form
                 self.state.step_explanation.set(
@@ -308,7 +308,7 @@ class DijkstraStepHandler:
             else:
                 # Automatically show solution without quiz
                 if not self.state.solution.get():
-                    solution = dijkstra_solution(self.state.graph.get(), input.start_node(), input.target_node())
+                    solution = dijkstra_solution(self.state.graph.get(), self.state.get_start_node(input), self.state.get_target_node(input))
                     self.state.solution.set(solution)
                 
                 self.state.step_explanation.set(
@@ -374,7 +374,7 @@ class DijkstraStepHandler:
         # Continue with the algorithm
         self.state.current_node.set(correct_node)
         
-        if correct_node == input.target_node():
+        if correct_node == self.state.get_target_node(input):
             self.state.step_explanation.set(
                 TagList(
                     f"{'✅ Correct prediction!' if is_correct else '❌ Incorrect prediction.'} The algorithm selected node {correct_node}.",
@@ -453,5 +453,20 @@ class DijkstraStepHandler:
             self.state.step_counter.set(STEP_SHOW_SOLUTION)
             # Draw the solution
             self.handle_next_step(input)
+
+            # If in task mode, advance to next task
+            if self.state.is_task_mode_active():
+                has_next = self.state.advance_to_next_task()
+                if has_next:
+                    # Show success message with next task info
+                    next_task = self.state.get_current_task()
+                    self.state.step_explanation.set(
+                        TagList(f"✓ Correct! Moving to Task {next_task['task_number']}: {next_task['description']}")
+                    )
+                else:
+                    # All tasks completed
+                    self.state.step_explanation.set(
+                        TagList("✓ Congratulations! You completed all tasks. Free mode is now unlocked!")
+                    )
         else:
             self.state.step_explanation.set(TagList(ERROR_INCORRECT_SOLUTION))

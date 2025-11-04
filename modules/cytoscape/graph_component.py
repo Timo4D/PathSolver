@@ -13,14 +13,6 @@ cytoscape_core_dep = HTMLDependency(
     script={"src": "cytoscape.min.js"}
 )
 
-# Cytoscape cxtmenu extension
-cytoscape_cxtmenu_dep = HTMLDependency(
-    name="cytoscape-cxtmenu",
-    version="3.5.0",
-    source={"href": "https://unpkg.com/cytoscape-cxtmenu@3.5.0/"},
-    script={"src": "cytoscape-cxtmenu.js"}
-)
-
 # Our custom component
 cytoscape_dep = HTMLDependency(
     name="cytoscape",
@@ -47,7 +39,6 @@ def output_cytoscape_graph(id, height="400px"):
     resolved_id = resolve_id(id)
     return ui.div(
         cytoscape_core_dep,
-        cytoscape_cxtmenu_dep,
         cytoscape_dep,
         ui.tags.style(f"""
             .resizable-cytoscape-container {{
