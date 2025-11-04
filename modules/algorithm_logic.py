@@ -10,6 +10,7 @@ from constants import (
 )
 from localization import _
 from utils.graph_utils import dijkstra_solution
+from utils.user_logger import get_logger
 
 
 class DijkstraStepHandler:
@@ -24,17 +25,33 @@ class DijkstraStepHandler:
         self.state.save_state()
         df = self.state.distances_df.get()
         G = self.state.graph.get()
-        
+
         # Only increment global step counter if algorithm hasn't reached target yet
         # Don't increment during STEP_FINISH or STEP_SHOW_SOLUTION (algorithm is complete)
         if step not in [STEP_FINISH, STEP_SHOW_SOLUTION]:
             self.state.global_step_counter.set(self.state.global_step_counter.get() + 1)
-        
+
         # Clear any previous error states when starting algorithm
         if step == STEP_INITIALIZE:
             self.state.start_node_error.set(False)
             self.state.target_node_error.set(False)
-        
+
+        # Log algorithm step
+        logger = get_logger()
+        step_names = {
+            STEP_INITIALIZE: "initialize",
+            STEP_VISIT_NODES: "visit_neighbors",
+            STEP_FIND_NEXT_NODE: "find_next_node",
+            STEP_FINISH: "finish",
+            STEP_SHOW_SOLUTION: "show_solution"
+        }
+        logger.log_algorithm_step(
+            step_number=step,
+            step_name=step_names.get(step, "unknown"),
+            current_node=str(self.state.current_node.get()) if self.state.current_node.get() else None,
+            nodes_visited=[str(n) for n in self.state.nodes_visited.get()]
+        )
+
         if step == STEP_INITIALIZE:
             self.initialize_step(input, df, G)
         elif step == STEP_VISIT_NODES:
@@ -126,30 +143,35 @@ class DijkstraStepHandler:
             if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
                 # This is a labeled graph - use the city name for lookup
                 lookup_value = nx.get_node_attributes(G, "label")[start_node]
-            
+
             # Find the row index for the start_node (using appropriate lookup value)
             start_rows = df[df.iloc[:, 0] == lookup_value]
             if start_rows.empty:
                 self.state.start_node_error.set(True)
                 self.state.step_explanation.set(TagList(f"Start node {start_node} (lookup: {lookup_value}) not found in distance table"))
                 return
-            
+
             start_row_idx = start_rows.index[0]
             df.iloc[start_row_idx, 1] = 0
             if G.nodes and "label" in G.nodes[next(iter(G.nodes))]:
                 df.iloc[start_row_idx, 2] = nx.get_node_attributes(G, "label")[start_node]
             else:
                 df.iloc[start_row_idx, 2] = start_node
-            
+
             # Success - update state
             self.state.distances_df.set(df)
             self.state.nodes_visited.set(self.state.nodes_visited.get() + [start_node])
             self.state.current_node.set(start_node)
             self.state.step_counter.set(STEP_VISIT_NODES)
-            
+
             # Ensure error states are cleared
             self.state.start_node_error.set(False)
             self.state.target_node_error.set(False)
+
+            # Log algorithm start
+            logger = get_logger()
+            graph_type = getattr(self.state, 'current_graph_type', 'unknown')
+            logger.log_algorithm_start(str(start_node), str(target_node), graph_type)
     
     def visit_neighbors(self, df, G):
         """Visit and update distances to neighbors."""
@@ -367,10 +389,20 @@ class DijkstraStepHandler:
         
         # Handle the prediction
         is_correct = self.state.handle_prediction(predicted_node, correct_node)
-        
+
+        # Log the prediction
+        logger = get_logger()
+        logger.log_prediction_made(
+            predicted_node=str(predicted_node),
+            correct_node=str(correct_node),
+            is_correct=is_correct,
+            current_score=self.state.game_score.get(),
+            consecutive_correct=self.state.consecutive_correct.get()
+        )
+
         # Clear prediction candidates to remove highlighting
         self.state.prediction_candidates.set([])
-        
+
         # Continue with the algorithm
         self.state.current_node.set(correct_node)
         
@@ -448,8 +480,17 @@ class DijkstraStepHandler:
                 return
 
         correct_solution = self.state.solution.get()
+        is_correct = user_solution == correct_solution
 
-        if user_solution == correct_solution:
+        # Log quiz submission
+        logger = get_logger()
+        logger.log_quiz_submission(
+            submitted_path=",".join(map(str, user_solution)),
+            correct_path=",".join(map(str, correct_solution)),
+            is_correct=is_correct
+        )
+
+        if is_correct:
             self.state.step_counter.set(STEP_SHOW_SOLUTION)
             # Draw the solution
             self.handle_next_step(input)

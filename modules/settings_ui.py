@@ -3,6 +3,7 @@
 from shiny import ui, render, reactive, req
 from modules.state_manager import state_manager
 from localization import _, get_available_languages
+from utils.user_logger import get_logger
 
 
 def settings_ui():
@@ -270,17 +271,23 @@ def settings_ui_server(input, output, session):
     def handle_authentication():
         password = input.admin_password()
         if password:
-            if state_manager.authenticate_settings(password):
+            success = state_manager.authenticate_settings(password)
+
+            # Log authentication attempt
+            logger = get_logger()
+            logger.log_settings_unlocked(password_correct=success)
+
+            if success:
                 # Clear password field and show success message
                 ui.update_text("admin_password", value="")
                 ui.notification_show(
-                    "Settings unlocked successfully!", 
+                    "Settings unlocked successfully!",
                     type="success",
                     duration=3
                 )
             else:
                 ui.notification_show(
-                    "Incorrect password. Please try again.", 
+                    "Incorrect password. Please try again.",
                     type="error",
                     duration=3
                 )
@@ -421,16 +428,20 @@ def settings_ui_server(input, output, session):
                         duration=2
                     )
     
-    # Language handler - always active (accessibility feature)  
+    # Language handler - always active (accessibility feature)
     @reactive.Effect
     def handle_language():
         language = input.app_language()
         if language is not None:
             current_lang = state_manager.current_language()
             if language != current_lang:  # Only update if actually changed
+                # Log language change
+                logger = get_logger()
+                logger.log_language_changed(current_lang, language)
+
                 if state_manager.update_language(language):
                     ui.notification_show(
-                        _("language_changed", language=language), 
+                        _("language_changed", language=language),
                         type="success",
                         duration=2
                     )
@@ -490,9 +501,13 @@ def settings_ui_server(input, output, session):
         if font_size is not None:
             current_size = state_manager.graph_font_size()
             if font_size != current_size:  # Only update if actually changed
+                # Log font size change
+                logger = get_logger()
+                logger.log_font_size_changed(current_size, font_size)
+
                 state_manager.update_graph_font_size(font_size)
                 ui.notification_show(
-                    _("font_size_changed", size=font_size), 
+                    _("font_size_changed", size=font_size),
                     type="success",
                     duration=2
                 )

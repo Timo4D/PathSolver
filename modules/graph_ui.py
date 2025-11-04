@@ -23,6 +23,7 @@ from utils.graph_generators import (
     generate_simple_path, generate_grid_graph, generate_european_cities
 )
 from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout, convert_graph_to_edgelist, convert_graph_to_csv
+from utils.user_logger import get_logger
 
 
 def graph_ui():
@@ -425,6 +426,9 @@ def graph_ui_server(input, output, session):
     def toggle_game_mode():
         # Only allow toggle if game feature is enabled in settings
         if state_manager.game_enabled():
+            logger = get_logger()
+            logger.log_game_toggled(enabled=input.game_enabled())
+
             if input.game_enabled():
                 # Enabling game mode - reset game state
                 state_manager.reset_game_state()
@@ -438,18 +442,25 @@ def graph_ui_server(input, output, session):
     @reactive.Effect
     @reactive.event(input.solution_quiz_enabled)
     def toggle_solution_quiz():
-        # This handler doesn't need to do anything special,
-        # the quiz logic in render_solution_quiz_ui will handle the user's choice
-        pass
-    
+        # Log solution quiz toggle
+        logger = get_logger()
+        logger.log_solution_quiz_toggled(enabled=input.solution_quiz_enabled())
+
     @reactive.Effect
     @reactive.event(input.game_difficulty)
     def update_difficulty():
         """Update game difficulty when user changes selection."""
-        if (state_manager.game_enabled() and input.game_difficulty() and 
+        if (state_manager.game_enabled() and input.game_difficulty() and
             not state_manager.force_game_difficulty.get()):
+            # Log difficulty change
+            old_difficulty = state_manager.game_difficulty.get()
+            new_difficulty = input.game_difficulty()
+            if old_difficulty != new_difficulty:
+                logger = get_logger()
+                logger.log_difficulty_changed(old_difficulty, new_difficulty)
+
             # Only allow user to change difficulty if not forced by instructor
-            state_manager.update_game_difficulty(input.game_difficulty())
+            state_manager.update_game_difficulty(new_difficulty)
     
     @reactive.Effect
     @reactive.event(input.cytoscape_graph_node_clicked)
@@ -605,6 +616,10 @@ def graph_ui_server(input, output, session):
             node_id = int(data["id"])
             graph = state_manager.graph.get()
             if graph and node_id in graph.nodes():
+                # Log the action
+                logger = get_logger()
+                logger.log_start_node_set(str(node_id), method="context_menu")
+
                 # Update the start node input programmatically
                 ui.update_selectize("start_node", selected=str(node_id))
                 # Reset algorithm state when start node changes
@@ -623,6 +638,10 @@ def graph_ui_server(input, output, session):
             node_id = int(data["id"])
             graph = state_manager.graph.get()
             if graph and node_id in graph.nodes():
+                # Log the action
+                logger = get_logger()
+                logger.log_target_node_set(str(node_id), method="context_menu")
+
                 # Update the target node input programmatically
                 ui.update_selectize("target_node", selected=str(node_id))
                 # Reset algorithm state when target node changes
@@ -648,13 +667,17 @@ def graph_ui_server(input, output, session):
                     )
                     return
                 
+                # Log the action
+                logger = get_logger()
+                logger.log_node_deleted(str(node_id))
+
                 # Remove the node and all its edges from the NetworkX graph
                 graph_copy = graph.copy()
                 graph_copy.remove_node(node_id)
-                
+
                 # Update the graph in state manager
                 state_manager.graph.set(graph_copy)
-                
+
                 # Clear start/target if they were the deleted node (only in free mode)
                 if not state_manager.is_task_mode_active():
                     current_start = state_manager.get_start_node(input)
@@ -664,7 +687,7 @@ def graph_ui_server(input, output, session):
                         ui.update_selectize("start_node", selected="")
                     if current_target and int(current_target) == node_id:
                         ui.update_selectize("target_node", selected="")
-                
+
                 # Reset algorithm state
                 state_manager.reset_algorithm_state()
 
@@ -686,17 +709,21 @@ def graph_ui_server(input, output, session):
                 # Create a copy of the graph and remove the edge
                 graph_copy = graph.copy()
                 graph_copy.remove_edge(source_id, target_id)
-                
+
                 # Check if removing this edge would disconnect the graph
                 if not nx.is_connected(graph_copy):
                     state_manager.step_explanation.set(
                         TagList(_("cannot_delete_disconnect").format(source=source_id, target=target_id))
                     )
                     return
-                
+
+                # Log the action
+                logger = get_logger()
+                logger.log_edge_deleted(str(source_id), str(target_id))
+
                 # Update the graph in state manager
                 state_manager.graph.set(graph_copy)
-                
+
                 # Reset algorithm state since graph structure changed
                 state_manager.reset_algorithm_state()
 
@@ -729,17 +756,21 @@ def graph_ui_server(input, output, session):
                     new_node_id = 0
                 
                 print(f"Debug: Creating new node with ID: {new_node_id} at position ({data['x']}, {data['y']})")  # Debug output
-                
+
+                # Log the action
+                logger = get_logger()
+                logger.log_node_added(str(new_node_id), position={"x": data["x"], "y": data["y"]})
+
                 # Create a copy of the graph and add the new node with position
                 graph_copy = graph.copy()
                 graph_copy.add_node(new_node_id, x=data["x"], y=data["y"])
-                
+
                 # Update the graph in state manager
                 state_manager.graph.set(graph_copy)
-                
+
                 # Reset algorithm state since graph structure changed
                 state_manager.reset_algorithm_state()
-                
+
                 state_manager.step_explanation.set(
                     TagList(_("added_new_node").format(node_id=new_node_id, x=data['x'], y=data['y']))
                 )
@@ -785,17 +816,21 @@ def graph_ui_server(input, output, session):
                     )
                     return
                 
+                # Log the action
+                logger = get_logger()
+                logger.log_edge_added(str(source_id), str(target_id), weight=1)
+
                 # Create a copy of the graph and add the new edge
                 graph_copy = graph.copy()
                 # Add edge with default weight of 1
                 graph_copy.add_edge(source_id, target_id, weight=1)
-                
+
                 # Update the graph in state manager
                 state_manager.graph.set(graph_copy)
-                
+
                 # Reset algorithm state since graph structure changed
                 state_manager.reset_algorithm_state()
-                
+
                 state_manager.step_explanation.set(
                     TagList(_("created_edge").format(source=source_id, target=target_id))
                 )
@@ -816,6 +851,13 @@ def graph_ui_server(input, output, session):
             graph = state_manager.graph.get()
 
             if graph and graph.has_edge(source_id, target_id):
+                # Get old weight for logging
+                old_weight = graph[source_id][target_id]['weight']
+
+                # Log the action
+                logger = get_logger()
+                logger.log_edge_weight_updated(str(source_id), str(target_id), old_weight, new_weight)
+
                 # Create a copy of the graph and update the edge weight
                 graph_copy = graph.copy()
                 graph_copy[source_id][target_id]['weight'] = new_weight
@@ -915,10 +957,12 @@ def _update_graph_based_on_selection(input):
     if state_manager.is_task_mode_active():
         return
 
+    logger = get_logger()
+
     if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
         n = input.n_slider()
         k = input.k_slider()
-        
+
         # Validate ring topology constraints
         if k >= n:
             state_manager.step_explanation.set(
@@ -927,8 +971,10 @@ def _update_graph_based_on_selection(input):
         else:
             graph = generate_random_graph(n, k, input.p_slider())
             state_manager.graph.set(graph)
+            logger.log_graph_selected("random", {"n": n, "k": k, "p": input.p_slider()})
     elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
         state_manager.graph.set(generate_koot_example())
+        logger.log_graph_selected("koot_example")
     elif input.selectize_graph() == GraphType.EDGE_LIST.value:
         edge_list_input = input.edge_list_input()
         if isinstance(edge_list_input, str):
@@ -939,5 +985,7 @@ def _update_graph_based_on_selection(input):
             else:
                 state_manager.invalid_edge_list.set(False)
                 state_manager.graph.set(result)
+                logger.log_graph_selected("edge_list")
         else:
             state_manager.graph.set(edge_list_input)
+            logger.log_graph_selected("edge_list")

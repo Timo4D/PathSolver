@@ -28,7 +28,17 @@ def server(input, output, session):
     from modules.state_manager import state_manager
     from modules.project_information import get_project_information
     from modules.dijkstra_info import get_dijkstra_info
-    
+    from utils.user_logger import get_logger
+
+    # Initialize logger for this session
+    logger = get_logger()
+
+    # Register session end handler
+    def on_session_end():
+        logger.log_session_end()
+
+    session.on_ended(on_session_end)
+
     # Dynamic main UI that updates with language changes
     @output
     @render.ui
