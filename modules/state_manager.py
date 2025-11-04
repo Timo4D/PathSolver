@@ -84,6 +84,10 @@ class StateManager:
         self.current_task_index = reactive.Value(0)  # Index in tasks array
         self.completed_tasks = reactive.Value([])  # List of completed task numbers
         self.tasks = self.config.get("tasks", [])  # Pre-defined tasks list
+
+        # Participant ID for evaluation studies
+        self.participant_id = reactive.Value(None)
+        self.participant_id_set = reactive.Value(False)
     
     def save_state(self):
         """Save current state for undo functionality."""
@@ -299,7 +303,16 @@ class StateManager:
             
         except Exception as e:
             print(f"Warning: Could not refresh static content: {e}")
-    
+
+    def set_participant_id(self, participant_id):
+        """Set the participant ID for this session."""
+        self.participant_id.set(participant_id)
+        self.participant_id_set.set(True)
+
+    def get_participant_id(self):
+        """Get the current participant ID."""
+        return self.participant_id.get()
+
     def get_effective_game_difficulty(self):
         """Get the effective game difficulty (forced or user-selected)."""
         forced_difficulty = self.force_game_difficulty.get()

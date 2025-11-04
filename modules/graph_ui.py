@@ -44,6 +44,14 @@ def graph_ui_server(input, output, session):
         if state_manager.is_task_mode_active():
             task = state_manager.get_current_task()
             if task:
+                # Log task start (when task changes or task mode is enabled)
+                logger = get_logger()
+                logger.log_task_started(
+                    task_index=task.get('task_number'),
+                    task_description=task.get('description'),
+                    graph_type=task.get('graph_type')
+                )
+
                 # Generate graph based on task configuration
                 if task["graph_type"] == "koot_example":
                     graph = generate_koot_example()

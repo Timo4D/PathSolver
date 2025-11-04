@@ -56,9 +56,33 @@ class UserActionLogger:
             event_type: Type of event (e.g., "algorithm_step", "prediction_made")
             data: Dictionary containing event-specific data
         """
+        # Get participant ID and task info from state manager if available
+        participant_id = None
+        task_mode_active = False
+        current_task_number = None
+        current_task_description = None
+
+        try:
+            from modules.state_manager import state_manager
+            participant_id = state_manager.get_participant_id()
+
+            # Get current task information if in task mode
+            if state_manager.is_task_mode_active():
+                task_mode_active = True
+                current_task = state_manager.get_current_task()
+                if current_task:
+                    current_task_number = current_task.get('task_number')
+                    current_task_description = current_task.get('description')
+        except Exception:
+            pass  # If state manager not available, proceed without extra info
+
         event = {
             "timestamp": datetime.now().isoformat(),
             "session_id": self.session_id,
+            "participant_id": participant_id,
+            "task_mode_active": task_mode_active,
+            "current_task_number": current_task_number,
+            "current_task_description": current_task_description,
             "event_type": event_type,
             "data": data
         }

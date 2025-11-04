@@ -5,6 +5,7 @@ from modules.graph_ui import graph_ui, graph_ui_server
 from modules.project_information import project_information
 from modules.settings_ui import settings_ui, settings_ui_server
 from modules.copyright_footer import copyright_footer
+from modules.participant_id_modal import participant_id_modal_ui, participant_id_modal_server
 from localization import _
 
 example_page = ui.page_fluid(
@@ -17,9 +18,19 @@ simple_plot = ui.page_fluid(ui.output_plot("plot"))
 
 simple_graph = ui.page_fluid(ui.output_plot("graph"))
 
-# Create the initial UI with reactive navigation
+# Create the initial UI with reactive navigation and participant ID modal
 app_ui = ui.page_fluid(
-    ui.output_ui("dynamic_app_ui")
+    ui.output_ui("dynamic_app_ui"),
+    ui.output_ui("participant_modal"),
+    ui.tags.script("""
+        // Handle hiding the participant modal
+        Shiny.addCustomMessageHandler('hideParticipantModal', function(message) {
+            $('#participant_modal_overlay').fadeOut(300, function() {
+                $(this).remove();
+            });
+            window.participantIdSet = true;
+        });
+    """)
 )
 
 
@@ -39,6 +50,15 @@ def server(input, output, session):
 
     session.on_ended(on_session_end)
 
+    # Participant ID modal
+    @output
+    @render.ui
+    def participant_modal():
+        """Render participant ID modal initially."""
+        if not state_manager.participant_id_set.get():
+            return participant_id_modal_ui()
+        return ui.div()
+
     # Dynamic main UI that updates with language changes
     @output
     @render.ui
@@ -51,20 +71,22 @@ def server(input, output, session):
             ui.nav_panel(_("nav_settings"), ui.div(settings_ui(), copyright_footer(), style="min-height: 100vh; display: flex; flex-direction: column;")),
             title=_("app_title"),
         )
-    
+
     # Dynamic content that updates with language changes
     @output
     @render.ui
     @reactive.event(state_manager.current_language)
     def dynamic_project_info():
         return get_project_information()
-    
-    @output  
+
+    @output
     @render.ui
     @reactive.event(state_manager.current_language)
     def dynamic_dijkstra_info():
         return get_dijkstra_info()
-    
+
+    # Initialize server modules
+    participant_id_modal_server(input, output, session)
     graph_ui_server(input, output, session)
     settings_ui_server(input, output, session)
 

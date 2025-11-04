@@ -35,6 +35,8 @@ def get_session_summary(events: List[Dict[str, Any]]) -> Dict[str, Any]:
     session_start = None
     session_end = None
     session_id = events[0].get('session_id', 'unknown')
+    participant_id = events[0].get('participant_id', 'not_set')
+    task_mode_active = events[0].get('task_mode_active', False)
 
     for event in events:
         if event['event_type'] == 'session_start':
@@ -51,6 +53,8 @@ def get_session_summary(events: List[Dict[str, Any]]) -> Dict[str, Any]:
 
     return {
         'session_id': session_id,
+        'participant_id': participant_id,
+        'task_mode_active': task_mode_active,
         'start_time': session_start.isoformat() if session_start else None,
         'end_time': session_end.isoformat() if session_end else None,
         'duration_seconds': duration,
@@ -184,6 +188,58 @@ def analyze_settings_changes(events: List[Dict[str, Any]]) -> Dict[str, Any]:
     }
 
 
+def analyze_task_progression(events: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Analyze task mode progression."""
+    task_events = [e for e in events if 'task' in e['event_type']]
+
+    if not task_events:
+        return {'task_mode_used': False}
+
+    task_starts = [e for e in task_events if e['event_type'] == 'task_started']
+    task_completions = [e for e in task_events if e['event_type'] == 'task_completed']
+
+    # Get all unique tasks encountered
+    tasks_encountered = set()
+    tasks_completed = set()
+
+    for event in task_starts:
+        task_num = event['data'].get('task_index')
+        if task_num:
+            tasks_encountered.add(task_num)
+
+    for event in task_completions:
+        task_num = event['data'].get('task_index')
+        if task_num and event['data'].get('success'):
+            tasks_completed.add(task_num)
+
+    # Calculate time spent on each task
+    task_times = {}
+    for start_event in task_starts:
+        task_num = start_event['data'].get('task_index')
+        if not task_num:
+            continue
+
+        start_time = datetime.fromisoformat(start_event['timestamp'])
+
+        # Find completion time for this task
+        completion_events = [e for e in task_completions
+                           if e['data'].get('task_index') == task_num]
+
+        if completion_events:
+            end_time = datetime.fromisoformat(completion_events[0]['timestamp'])
+            duration = (end_time - start_time).total_seconds()
+            task_times[task_num] = duration
+
+    return {
+        'task_mode_used': True,
+        'total_tasks_encountered': len(tasks_encountered),
+        'total_tasks_completed': len(tasks_completed),
+        'completion_rate': len(tasks_completed) / len(tasks_encountered) if tasks_encountered else 0,
+        'tasks_completed': sorted(list(tasks_completed)),
+        'task_times_seconds': task_times
+    }
+
+
 def export_to_csv(events: List[Dict[str, Any]], output_file: Path):
     """Export events to CSV format."""
     # Flatten the nested data structure
@@ -192,6 +248,10 @@ def export_to_csv(events: List[Dict[str, Any]], output_file: Path):
         row = {
             'timestamp': event['timestamp'],
             'session_id': event['session_id'],
+            'participant_id': event.get('participant_id', 'not_set'),
+            'task_mode_active': event.get('task_mode_active', False),
+            'current_task_number': event.get('current_task_number'),
+            'current_task_description': event.get('current_task_description'),
             'event_type': event['event_type']
         }
         # Add data fields with prefix
@@ -226,7 +286,9 @@ def print_report(log_file: Path):
     print("SESSION SUMMARY")
     print("-" * 60)
     summary = get_session_summary(events)
+    print(f"Participant ID: {summary.get('participant_id')}")
     print(f"Session ID: {summary.get('session_id')}")
+    print(f"Task Mode: {'Active' if summary.get('task_mode_active') else 'Inactive (Free Mode)'}")
     print(f"Start time: {summary.get('start_time')}")
     print(f"End time: {summary.get('end_time')}")
     print(f"Duration: {summary.get('duration_minutes', 0):.2f} minutes")
@@ -291,6 +353,25 @@ def print_report(log_file: Path):
         print(f"Accuracy: {quiz_stats.get('accuracy', 0):.1%}")
     else:
         print("Solution quiz not used")
+    print()
+
+    # Task Mode Progression
+    print("TASK MODE PROGRESSION")
+    print("-" * 60)
+    task_stats = analyze_task_progression(events)
+    if task_stats.get('task_mode_used'):
+        print(f"Task mode: Active")
+        print(f"Tasks encountered: {task_stats.get('total_tasks_encountered', 0)}")
+        print(f"Tasks completed: {task_stats.get('total_tasks_completed', 0)}")
+        print(f"Completion rate: {task_stats.get('completion_rate', 0):.1%}")
+        print(f"Completed tasks: {task_stats.get('tasks_completed', [])}")
+        task_times = task_stats.get('task_times_seconds', {})
+        if task_times:
+            print(f"Time per task:")
+            for task_num, duration in sorted(task_times.items()):
+                print(f"  Task {task_num}: {duration:.1f}s ({duration/60:.1f} min)")
+    else:
+        print("Task mode not used (free mode)")
     print()
 
     # Settings Changes

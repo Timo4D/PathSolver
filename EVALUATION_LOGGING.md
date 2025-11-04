@@ -5,6 +5,7 @@ This document describes the comprehensive user action logging system implemented
 ## Overview
 
 The logging system captures all user interactions with the application, including:
+- Participant identification
 - Algorithm execution steps
 - Graph manipulations
 - Prediction game interactions
@@ -13,6 +14,16 @@ The logging system captures all user interactions with the application, includin
 - Session metadata
 
 All logs are stored in JSONL (JSON Lines) format for easy analysis.
+
+## Participant ID Entry
+
+When users first access the application, they are required to enter a **Participant ID** before they can use any features. This ensures that all actions can be properly attributed to specific participants in your evaluation study.
+
+### Key Features:
+- **Mandatory Entry**: Users cannot bypass the participant ID screen
+- **Flexible Format**: Accepts any alphanumeric ID (e.g., P001, USER123, etc.)
+- **Persistent Tracking**: The participant ID is included in every log event
+- **Session Binding**: Each participant ID is bound to a session
 
 ## Log Files
 
@@ -32,6 +43,10 @@ Each line in the log file is a JSON object with the following structure:
 {
   "timestamp": "2025-01-04T14:30:22.123456",
   "session_id": "a1b2c3d4",
+  "participant_id": "P001",
+  "task_mode_active": true,
+  "current_task_number": 1,
+  "current_task_description": "Find shortest path in simple graph",
   "event_type": "algorithm_step",
   "data": {
     "step_number": 1,
@@ -41,6 +56,16 @@ Each line in the log file is a JSON object with the following structure:
   }
 }
 ```
+
+**Fields:**
+- `timestamp`: ISO 8601 formatted timestamp
+- `session_id`: Unique session identifier (8-character UUID)
+- `participant_id`: User-entered participant identifier
+- `task_mode_active`: Whether task mode is active (true/false)
+- `current_task_number`: Current task number (null if not in task mode)
+- `current_task_description`: Description of current task (null if not in task mode)
+- `event_type`: Type of action/event
+- `data`: Event-specific data
 
 ## Event Types
 
@@ -137,6 +162,12 @@ The analysis script provides:
 - Total submissions
 - Accuracy
 
+**Task Mode Progression:**
+- Tasks encountered and completed
+- Completion rate
+- Time spent on each task
+- Task-specific performance
+
 **Settings Changes:**
 - Language changes
 - Font size adjustments
@@ -176,8 +207,35 @@ import pandas as pd
 # Load CSV export
 df = pd.read_csv('output.csv')
 
+# Filter by participant
+participant_data = df[df['participant_id'] == 'P001']
+
 # Filter by event type
 algo_steps = df[df['event_type'] == 'algorithm_step']
+
+# Compare participants
+participant_summary = df.groupby('participant_id').agg({
+    'event_type': 'count',
+    'timestamp': ['min', 'max']
+})
+
+# Analyze prediction accuracy by participant
+predictions = df[df['event_type'] == 'prediction_made']
+accuracy_by_participant = predictions.groupby('participant_id')['data_is_correct'].mean()
+
+# Filter by task number
+task_1_events = df[df['current_task_number'] == 1]
+
+# Compare performance across tasks
+task_completion = df[df['event_type'] == 'task_completed'].groupby('data_task_index').size()
+
+# Analyze time spent per task per participant
+task_times = df[df['event_type'] == 'task_started'].merge(
+    df[df['event_type'] == 'task_completed'],
+    on=['participant_id', 'data_task_index'],
+    suffixes=('_start', '_end')
+)
+task_times['duration'] = pd.to_datetime(task_times['timestamp_end']) - pd.to_datetime(task_times['timestamp_start'])
 
 # Time series analysis
 df['timestamp'] = pd.to_datetime(df['timestamp'])
@@ -190,10 +248,13 @@ hourly_activity = df.groupby('hour').size()
 ## Privacy Considerations
 
 The logging system:
-- Does NOT log any personally identifiable information (PII)
-- Uses random session IDs (not linked to user accounts)
-- Only logs application interactions, not user identity
-- Stores logs locally on the server
+- **Participant IDs**: Users enter their own identifiers (e.g., P001, USER123)
+- **No PII Collection**: The system does NOT automatically collect names, emails, or other personally identifiable information
+- **Researcher Responsibility**: It is the researcher's responsibility to maintain a separate secure mapping between participant IDs and actual identities if needed
+- **Anonymous IDs Recommended**: Consider using anonymous codes (P001, P002, etc.) rather than names
+- **Random Session IDs**: Each session gets a unique random identifier
+- **Local Storage**: All logs are stored locally on the server
+- **Application Interactions Only**: Only user actions within the app are logged
 
 ## Disabling Logging
 

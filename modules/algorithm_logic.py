@@ -497,12 +497,32 @@ class DijkstraStepHandler:
 
             # If in task mode, advance to next task
             if self.state.is_task_mode_active():
+                # Get current task before advancing
+                completed_task = self.state.get_current_task()
+                completed_task_number = completed_task.get('task_number') if completed_task else None
+
+                # Advance to next task
                 has_next = self.state.advance_to_next_task()
+
+                # Log task completion
+                logger = get_logger()
+                logger.log_task_completed(
+                    task_index=completed_task_number,
+                    success=True
+                )
+
                 if has_next:
                     # Show success message with next task info
                     next_task = self.state.get_current_task()
                     self.state.step_explanation.set(
                         TagList(f"✓ Correct! Moving to Task {next_task['task_number']}: {next_task['description']}")
+                    )
+
+                    # Log that new task started
+                    logger.log_task_started(
+                        task_index=next_task.get('task_number'),
+                        task_description=next_task.get('description'),
+                        graph_type=next_task.get('graph_type')
                     )
                 else:
                     # All tasks completed
