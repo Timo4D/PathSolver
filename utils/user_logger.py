@@ -12,6 +12,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional
 import uuid
+import threading
+from concurrent.futures import ThreadPoolExecutor
+import requests
 
 
 class UserActionLogger:
@@ -40,6 +43,13 @@ class UserActionLogger:
         timestamp = self.session_start_time.strftime("%Y%m%d_%H%M%S")
         self.log_file = self.log_dir / f"user_actions_{timestamp}_{self.session_id}.jsonl"
 
+        # Remote logging configuration
+        self.remote_logging_url = os.getenv("REMOTE_LOGGING_URL", "http://localhost:5000/api/log")
+        self.remote_logging_enabled = os.getenv("ENABLE_REMOTE_LOGGING", "true").lower() == "true"
+
+        # Thread pool for async HTTP requests (don't block the main app)
+        self.http_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="log_http")
+
         # Initialize log file
         self._log_event("session_start", {
             "session_id": self.session_id,
@@ -47,6 +57,29 @@ class UserActionLogger:
         })
 
         self._initialized = True
+
+    def _send_http_log(self, event: Dict[str, Any]) -> None:
+        """
+        Send log event to remote logging server via HTTP.
+        This runs in a background thread to avoid blocking the main app.
+
+        Args:
+            event: The complete event dictionary to send
+        """
+        if not self.remote_logging_enabled:
+            return
+
+        try:
+            response = requests.post(
+                self.remote_logging_url,
+                json=event,
+                timeout=2  # Short timeout to avoid blocking
+            )
+            response.raise_for_status()
+        except Exception as e:
+            # Silently fail - we don't want remote logging issues to crash the app
+            # Could optionally log this to a separate error log
+            pass
 
     def _log_event(self, event_type: str, data: Dict[str, Any]) -> None:
         """
@@ -90,6 +123,10 @@ class UserActionLogger:
         # Write to JSONL format (one JSON object per line)
         with open(self.log_file, "a", encoding="utf-8") as f:
             f.write(json.dumps(event) + "\n")
+
+        # Send to remote logging server in background thread
+        if self.remote_logging_enabled:
+            self.http_executor.submit(self._send_http_log, event)
 
     # ==================== Algorithm Events ====================
 
@@ -370,6 +407,10 @@ class UserActionLogger:
             "session_id": self.session_id,
             "duration_seconds": session_duration
         })
+
+        # Wait for pending HTTP requests to complete (with timeout)
+        if hasattr(self, 'http_executor'):
+            self.http_executor.shutdown(wait=True, cancel_futures=False)
 
     def get_session_summary(self) -> Dict[str, Any]:
         """Get summary of current session."""

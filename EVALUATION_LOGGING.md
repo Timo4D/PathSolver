@@ -13,7 +13,9 @@ The logging system captures all user interactions with the application, includin
 - Settings changes
 - Session metadata
 
-All logs are stored in JSONL (JSON Lines) format for easy analysis.
+All logs are stored both:
+- **Locally** in JSONL (JSON Lines) format for easy analysis
+- **Remotely** via HTTP to a separate logging server (optional, configurable)
 
 ## Participant ID Entry
 
@@ -256,12 +258,46 @@ The logging system:
 - **Local Storage**: All logs are stored locally on the server
 - **Application Interactions Only**: Only user actions within the app are logged
 
+## Remote Logging Configuration
+
+The logging system can send logs to a remote logging server via HTTP in addition to storing them locally.
+
+### Environment Variables
+
+Configure remote logging using these environment variables:
+
+```bash
+# Enable or disable remote logging (default: true)
+export ENABLE_REMOTE_LOGGING=true
+
+# URL of the remote logging server (default: http://localhost:5000/api/log)
+export REMOTE_LOGGING_URL=http://your-logging-server.com/api/log
+```
+
+### How It Works
+
+- **Non-blocking**: Logs are sent in background threads, so the app performance is not affected
+- **Graceful failure**: If the remote server is down or unreachable, the app continues working normally
+- **Local backup**: All logs are still saved locally even if remote logging fails
+- **Short timeout**: HTTP requests timeout after 2 seconds to avoid blocking
+
+### Starting the App with Remote Logging
+
+```bash
+# With remote logging enabled
+ENABLE_REMOTE_LOGGING=true REMOTE_LOGGING_URL=http://logging-server:5000/api/log python app.py
+
+# With remote logging disabled
+ENABLE_REMOTE_LOGGING=false python app.py
+```
+
 ## Disabling Logging
 
 To disable logging, you can:
 
 1. **Temporary:** Rename the `utils/user_logger.py` file
 2. **Permanent:** Comment out the logger initialization in `app.py`
+3. **Remote only:** Set `ENABLE_REMOTE_LOGGING=false`
 
 ## Best Practices
 
