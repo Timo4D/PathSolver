@@ -46,6 +46,7 @@ def main_ui():
             ui.output_ui("graph_display"),
             ui.output_ui("progress_bar"),
             ui.output_ui("prediction_game_ui"),
+            ui.output_ui("prediction_feedback_ui"),
             ui.output_ui("explain"),
             ui.row(
                 ui.column(6, ui.output_ui("render_solution_quiz_ui"), ui.output_ui("dynamic_distances")),
@@ -244,31 +245,77 @@ def solution_quiz_toggle_ui():
     )
 
 
+def create_prediction_feedback_ui(feedback_message, is_correct, game_score, consecutive_correct, total_predictions, correct_predictions):
+    """Create persistent feedback UI for prediction results."""
+    if not feedback_message:
+        return ui.div()
+
+    # Calculate accuracy percentage
+    accuracy = 0
+    if total_predictions > 0:
+        accuracy = round((correct_predictions / total_predictions) * 100, 1)
+
+    # Calculate points earned for this prediction
+    points_earned = 0
+    if is_correct:
+        points_earned = 10 + min((consecutive_correct - 1) * 2, 20) if consecutive_correct > 0 else 10
+
+    # Choose styling based on correctness
+    if is_correct:
+        bg_color = "#d4edda"
+        border_color = "#28a745"
+        text_color = "#155724"
+        icon = "✅"
+        points_text = f"+{points_earned} points"
+    else:
+        bg_color = "#f8d7da"
+        border_color = "#dc3545"
+        text_color = "#721c24"
+        icon = "❌"
+        points_text = ""
+
+    return ui.div(
+        ui.div(
+            # Main feedback message
+            ui.div(
+                feedback_message,
+                style=f"font-weight: bold; font-size: 1.2em; margin-bottom: 10px;"
+            ),
+            # Stats row
+            ui.div(
+                ui.span(
+                    f"🏆 Score: {game_score}" + (f" ({points_text})" if points_text else ""),
+                    style="display: inline-block; margin-right: 20px; font-weight: bold;"
+                ),
+                ui.span(
+                    f"🔥 Streak: {consecutive_correct}",
+                    style="display: inline-block; margin-right: 20px; font-weight: bold;"
+                ),
+                ui.span(
+                    f"📊 Accuracy: {accuracy}%",
+                    style="display: inline-block; font-weight: bold;"
+                ),
+                style="font-size: 1.0em;"
+            ),
+            style=f"background-color: {bg_color}; border: 2px solid {border_color}; color: {text_color}; padding: 15px; border-radius: 8px;"
+        ),
+        style="margin-bottom: 15px;"
+    )
+
+
 def create_prediction_game_ui(
-    waiting_for_prediction, game_score, consecutive_correct, 
+    waiting_for_prediction, game_score, consecutive_correct,
     total_predictions, correct_predictions, last_prediction_correct, game_difficulty=None
 ):
     """Create prediction game UI when waiting for user prediction."""
     if not waiting_for_prediction:
         return None
-    
+
     # Calculate accuracy percentage
     accuracy = 0
     if total_predictions > 0:
         accuracy = round((correct_predictions / total_predictions) * 100, 1)
-    
-    # Feedback message for last prediction
-    feedback_message = ""
-    feedback_style = ""
-    if last_prediction_correct is not None:
-        if last_prediction_correct:
-            points = 10 + min(consecutive_correct * 2, 20)
-            feedback_message = _("prediction_correct").format(points=points)
-            feedback_style = "color: #28a745; font-weight: bold;"
-        else:
-            feedback_message = _("prediction_incorrect")
-            feedback_style = "color: #dc3545; font-weight: bold;"
-    
+
     return ui.card(
         ui.card_header(
             ui.div(
@@ -293,8 +340,7 @@ def create_prediction_game_ui(
             style="display: flex; justify-content: space-between; align-items: center;"
         ),
         ui.card_body(
-            ui.div(feedback_message, style=feedback_style) if feedback_message else None,
-            ui.h4(_("prediction_question"), style="color: #007bff; margin-top: 10px;"),
+            ui.h4(_("prediction_question"), style="color: #007bff; margin-top: 0px;"),
             ui.p(
                 _("prediction_instruction"),
                 style="margin-bottom: 15px;"

@@ -12,7 +12,7 @@ from modules.state_manager import state_manager
 from modules.ui_components import (
     main_ui, GraphType, create_progress_bar, create_explanation_ui,
     render_graph_generator_settings, render_error_tooltip, render_distances_table,
-    create_prediction_game_ui
+    create_prediction_game_ui, create_prediction_feedback_ui
 )
 from modules.algorithm_logic import DijkstraStepHandler
 from modules.cytoscape.graph_component import render_cytoscape
@@ -101,15 +101,15 @@ def graph_ui_server(input, output, session):
         # Only show prediction game UI if game feature is enabled in settings
         if not state_manager.game_enabled():
             return ui.div()
-        
+
         # Check if game should be active (forced or user enabled)
         game_active = state_manager.force_game_mode() or \
                      (input.game_enabled() if input.game_enabled() is not None else False)
-        
+
         # Only show UI if game is actually active
         if not game_active:
             return ui.div()
-        
+
         return create_prediction_game_ui(
             state_manager.waiting_for_prediction.get(),
             state_manager.game_score.get(),
@@ -118,6 +118,41 @@ def graph_ui_server(input, output, session):
             state_manager.correct_predictions.get(),
             state_manager.last_prediction_correct.get(),
             state_manager.get_effective_game_difficulty()
+        )
+
+    @output
+    @render.ui
+    @reactive.event(
+        state_manager.prediction_feedback_message,
+        state_manager.last_prediction_correct,
+        state_manager.game_score,
+        state_manager.consecutive_correct,
+        state_manager.total_predictions,
+        state_manager.correct_predictions,
+        state_manager.game_enabled,
+        state_manager.force_game_mode
+    )
+    def prediction_feedback_ui():
+        """Display persistent prediction feedback."""
+        # Only show feedback if game feature is enabled in settings
+        if not state_manager.game_enabled():
+            return ui.div()
+
+        # Check if game should be active (forced or user enabled)
+        game_active = state_manager.force_game_mode() or \
+                     (input.game_enabled() if input.game_enabled() is not None else False)
+
+        # Only show feedback if game is actually active
+        if not game_active:
+            return ui.div()
+
+        return create_prediction_feedback_ui(
+            state_manager.prediction_feedback_message.get(),
+            state_manager.last_prediction_correct.get(),
+            state_manager.game_score.get(),
+            state_manager.consecutive_correct.get(),
+            state_manager.total_predictions.get(),
+            state_manager.correct_predictions.get()
         )
 
     @output

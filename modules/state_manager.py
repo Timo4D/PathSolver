@@ -54,6 +54,7 @@ class StateManager:
         self.last_prediction_correct = reactive.Value(None)
         self.total_predictions = reactive.Value(0)
         self.correct_predictions = reactive.Value(0)
+        self.prediction_feedback_message = reactive.Value(None)  # Persistent feedback message
         
         # Settings state
         self.visualization_mode = reactive.Value(self.config["settings"]["visualization_mode"])
@@ -149,6 +150,7 @@ class StateManager:
         self.last_prediction_correct.set(None)
         self.total_predictions.set(0)
         self.correct_predictions.set(0)
+        self.prediction_feedback_message.set(None)
     
     def handle_prediction(self, predicted_node, correct_node):
         """Handle a prediction made by the user."""

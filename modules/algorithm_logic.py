@@ -292,7 +292,10 @@ class DijkstraStepHandler:
                 
                 self.state.prediction_candidates.set(candidates)
                 self.state.waiting_for_prediction.set(True)
-                
+
+                # Clear previous feedback when asking for new prediction
+                self.state.prediction_feedback_message.set(None)
+
                 # Don't proceed with algorithm until prediction is made
                 self.state.step_explanation.set(
                     TagList(
@@ -390,6 +393,10 @@ class DijkstraStepHandler:
         # Handle the prediction
         is_correct = self.state.handle_prediction(predicted_node, correct_node)
 
+        # Store feedback message for persistent display
+        feedback_msg = f"{'✅ Correct prediction!' if is_correct else '❌ Incorrect prediction.'} The algorithm selected node {correct_node}."
+        self.state.prediction_feedback_message.set(feedback_msg)
+
         # Log the prediction
         logger = get_logger()
         logger.log_prediction_made(
@@ -409,8 +416,6 @@ class DijkstraStepHandler:
         if correct_node == self.state.get_target_node(input):
             self.state.step_explanation.set(
                 TagList(
-                    f"{'✅ Correct prediction!' if is_correct else '❌ Incorrect prediction.'} The algorithm selected node {correct_node}.",
-                    ui.br(), ui.br(),
                     "We have now arrived at our Target node, that means we are done and have found the shortest possible distance to it",
                     ui.br(),
                     "You now have to enter your solution of the fastest path in new Box below. If it is correct you will see the path on the graph.",
@@ -422,12 +427,10 @@ class DijkstraStepHandler:
             )
             self.state.step_counter.set(self.state.step_counter.get() + 1)
         else:
-            nodes_visited_count = len(self.state.nodes_visited.get())  
+            nodes_visited_count = len(self.state.nodes_visited.get())
             total_nodes = len(G.nodes())
             self.state.step_explanation.set(
                 TagList(
-                    f"{'✅ Correct prediction!' if is_correct else '❌ Incorrect prediction.'} The algorithm selected node {correct_node}.",
-                    ui.br(), ui.br(),
                     f"✅ Selected node {correct_node} (lowest unvisited cost) as our new current node.", ui.br(),
                     f"🔄 Since {correct_node} is not our target node, we'll continue the algorithm by examining its neighbors next.",
                     ui.br(), ui.br(),
