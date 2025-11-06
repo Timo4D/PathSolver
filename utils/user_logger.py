@@ -81,6 +81,14 @@ class UserActionLogger:
             # Could optionally log this to a separate error log
             pass
 
+    def _ensure_executor_available(self) -> None:
+        """
+        Ensure the HTTP executor is available and not shut down.
+        Recreates the executor if it has been shut down.
+        """
+        if not hasattr(self, 'http_executor') or self.http_executor._shutdown:
+            self.http_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="log_http")
+
     def _log_event(self, event_type: str, data: Dict[str, Any]) -> None:
         """
         Log a single event to the log file.
@@ -126,6 +134,7 @@ class UserActionLogger:
 
         # Send to remote logging server in background thread
         if self.remote_logging_enabled:
+            self._ensure_executor_available()
             self.http_executor.submit(self._send_http_log, event)
 
     # ==================== Algorithm Events ====================
