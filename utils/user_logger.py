@@ -15,6 +15,21 @@ import uuid
 import threading
 from concurrent.futures import ThreadPoolExecutor
 import requests
+import numpy as np
+
+
+class NumpyEncoder(json.JSONEncoder):
+    """Custom encoder for NumPy data types."""
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, np.bool_):
+            return bool(obj)
+        return super(NumpyEncoder, self).default(obj)
 
 
 class UserActionLogger:
@@ -44,7 +59,7 @@ class UserActionLogger:
         self.log_file = self.log_dir / f"user_actions_{timestamp}_{self.session_id}.jsonl"
 
         # Remote logging configuration
-        self.remote_logging_url = os.getenv("REMOTE_LOGGING_URL", "http://localhost:5000/api/log")
+        self.remote_logging_url = os.getenv("REMOTE_LOGGING_URL", "http://157.180.50.44:5000/api/log")
         self.remote_logging_enabled = os.getenv("ENABLE_REMOTE_LOGGING", "true").lower() == "true"
 
         # Thread pool for async HTTP requests (don't block the main app)
@@ -72,7 +87,8 @@ class UserActionLogger:
         try:
             response = requests.post(
                 self.remote_logging_url,
-                json=event,
+                data=json.dumps(event, cls=NumpyEncoder),
+                headers={'Content-Type': 'application/json'},
                 timeout=2  # Short timeout to avoid blocking
             )
             response.raise_for_status()
@@ -130,7 +146,7 @@ class UserActionLogger:
 
         # Write to JSONL format (one JSON object per line)
         with open(self.log_file, "a", encoding="utf-8") as f:
-            f.write(json.dumps(event) + "\n")
+            f.write(json.dumps(event, cls=NumpyEncoder) + "\n")
 
         # Send to remote logging server in background thread
         if self.remote_logging_enabled:
