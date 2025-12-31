@@ -270,7 +270,7 @@ Configure remote logging using these environment variables:
 # Enable or disable remote logging (default: true)
 export ENABLE_REMOTE_LOGGING=true
 
-# URL of the remote logging server (default: http://localhost:5000/api/log)
+# URL of the remote logging server (default: http://157.180.50.44:5000/api/log)
 export REMOTE_LOGGING_URL=http://your-logging-server.com/api/log
 ```
 

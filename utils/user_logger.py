@@ -8,9 +8,10 @@ and relevant contextual information.
 
 import json
 import os
+import time
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, List, Optional
 import uuid
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -58,24 +59,193 @@ class UserActionLogger:
         timestamp = self.session_start_time.strftime("%Y%m%d_%H%M%S")
         self.log_file = self.log_dir / f"user_actions_{timestamp}_{self.session_id}.jsonl"
 
-        # Remote logging configuration
-        self.remote_logging_url = os.getenv("REMOTE_LOGGING_URL", "http://157.180.50.44:5000/api/log")
+        # Remote logging configuration - hardcoded servers for reliability
+        self.remote_logging_urls: List[str] = [
+            "http://152.53.87.14:5000/api/log",
+            "http://157.180.50.44:5000/api/log"
+        ]
         self.remote_logging_enabled = os.getenv("ENABLE_REMOTE_LOGGING", "true").lower() == "true"
+
+        # Retry configuration
+        self.max_retries = 3
+        self.retry_backoff_base = 0.5  # seconds: 0.5, 1.0, 2.0
+
+        # Failure tracking
+        self._remote_success_count = 0
+        self._remote_failure_count = 0
+        self._last_remote_error: Optional[str] = None
+        self._servers_status: Dict[str, bool] = {url: True for url in self.remote_logging_urls}  # Assume available initially
+        self._lock = threading.Lock()
+        self._last_notification_time: float = 0  # Throttle notifications
+
+        # Warning callback for notifying Shiny app
+        self._warning_callback: Optional[Callable[[str], None]] = None
 
         # Thread pool for async HTTP requests (don't block the main app)
         self.http_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="log_http")
 
+        # Check remote connectivity at startup
+        if self.remote_logging_enabled and self.remote_logging_urls:
+            self._check_connectivity_and_warn()
+
         # Initialize log file
         self._log_event("session_start", {
             "session_id": self.session_id,
-            "start_time": self.session_start_time.isoformat()
+            "start_time": self.session_start_time.isoformat(),
+            "remote_servers": self.remote_logging_urls,
+            "remote_logging_enabled": self.remote_logging_enabled
         })
 
         self._initialized = True
 
+    def set_warning_callback(self, callback: Callable[[str], None]) -> None:
+        """
+        Set callback for showing warnings to the user.
+        The Shiny app can register a callback to display notifications.
+
+        Args:
+            callback: Function that takes a warning message string
+        """
+        self._warning_callback = callback
+
+    def _notify_warning(self, message: str) -> None:
+        """Send warning to state manager for UI to display."""
+        # Use state_manager's reactive value for thread-safe notification
+        try:
+            from modules.state_manager import state_manager
+            state_manager.logging_warning.set(message)
+        except Exception:
+            pass  # State manager not available, just log to console
+        
+        # Also call callback if registered
+        if self._warning_callback:
+            try:
+                self._warning_callback(message)
+            except Exception:
+                pass  # Don't let callback errors break logging
+
+    def _check_connectivity_and_warn(self) -> None:
+        """
+        Check connectivity to all remote servers at startup.
+        Warns user if no servers are reachable.
+        """
+        print("[Logger] Checking remote server connectivity...")
+        connectivity = self.check_remote_connectivity()
+        any_available = any(connectivity.values())
+
+        if not any_available:
+            warning_msg = (
+                "⚠️ Remote logging unavailable: Could not connect to any logging server. "
+                "Your session data will be saved locally only."
+            )
+            self._notify_warning(warning_msg)
+            # Log this locally
+            self._log_local_only("remote_logging_warning", {
+                "message": "No remote servers reachable at startup",
+                "servers_checked": list(connectivity.keys())
+            })
+        else:
+            # Check if primary is down but backups are available
+            if len(self.remote_logging_urls) > 1 and not connectivity.get(self.remote_logging_urls[0], False):
+                self._log_local_only("remote_logging_warning", {
+                    "message": "Primary logging server unreachable, using backup",
+                    "primary_server": self.remote_logging_urls[0],
+                    "available_servers": [url for url, ok in connectivity.items() if ok]
+                })
+
+    def check_remote_connectivity(self) -> Dict[str, bool]:
+        """
+        Test connectivity to all remote logging servers.
+
+        Returns:
+            Dict mapping server URL to availability status
+        """
+        results = {}
+        for url in self.remote_logging_urls:
+            try:
+                # Use a simple HEAD or POST with minimal payload
+                response = requests.post(
+                    url,
+                    data=json.dumps({"event_type": "connectivity_check", "session_id": self.session_id}),
+                    headers={'Content-Type': 'application/json'},
+                    timeout=3
+                )
+                is_reachable = response.status_code < 500  # Accept 2xx, 3xx, 4xx as "reachable"
+                results[url] = is_reachable
+                print(f"[Logger] Server {url}: {'✓ reachable' if is_reachable else '✗ unreachable'}")
+            except Exception as e:
+                results[url] = False
+                print(f"[Logger] Server {url}: ✗ unreachable ({e})")
+
+        with self._lock:
+            self._servers_status = results.copy()
+
+        return results
+
+    def get_remote_logging_status(self) -> Dict[str, Any]:
+        """
+        Get status of remote logging for current session.
+
+        Returns:
+            Dict with success/failure counts, server status, and last error
+        """
+        with self._lock:
+            return {
+                "events_sent": self._remote_success_count,
+                "events_failed": self._remote_failure_count,
+                "servers_status": self._servers_status.copy(),
+                "last_error": self._last_remote_error,
+                "remote_logging_enabled": self.remote_logging_enabled
+            }
+
+    def _log_local_only(self, event_type: str, data: Dict[str, Any]) -> None:
+        """Log an event only to the local file, not to remote servers."""
+        event = {
+            "timestamp": datetime.now().isoformat(),
+            "session_id": self.session_id,
+            "event_type": event_type,
+            "data": data
+        }
+        with open(self.log_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(event, cls=NumpyEncoder) + "\n")
+
+    def _send_http_log_with_retry(self, url: str, event: Dict[str, Any]) -> bool:
+        """
+        Attempt to send log to a specific server with retries.
+
+        Args:
+            url: The server URL to send to
+            event: The event dictionary to send
+
+        Returns:
+            True if successful, False otherwise
+        """
+        last_error = None
+        for attempt in range(self.max_retries):
+            try:
+                response = requests.post(
+                    url,
+                    data=json.dumps(event, cls=NumpyEncoder),
+                    headers={'Content-Type': 'application/json'},
+                    timeout=2
+                )
+                response.raise_for_status()
+                return True
+            except Exception as e:
+                last_error = str(e)
+                if attempt < self.max_retries - 1:
+                    delay = self.retry_backoff_base * (2 ** attempt)
+                    print(f"[Logger] Retry {attempt + 1}/{self.max_retries} for {url} (waiting {delay}s)")
+                    time.sleep(delay)
+
+        # All retries failed
+        with self._lock:
+            self._last_remote_error = f"{url}: {last_error}"
+        return False
+
     def _send_http_log(self, event: Dict[str, Any]) -> None:
         """
-        Send log event to remote logging server via HTTP.
+        Send log event to ALL remote logging servers.
         This runs in a background thread to avoid blocking the main app.
 
         Args:
@@ -84,18 +254,19 @@ class UserActionLogger:
         if not self.remote_logging_enabled:
             return
 
-        try:
-            response = requests.post(
-                self.remote_logging_url,
-                data=json.dumps(event, cls=NumpyEncoder),
-                headers={'Content-Type': 'application/json'},
-                timeout=2  # Short timeout to avoid blocking
-            )
-            response.raise_for_status()
-        except Exception as e:
-            # Silently fail - we don't want remote logging issues to crash the app
-            # Could optionally log this to a separate error log
-            pass
+        # Send to ALL servers (for full history on each)
+        for url in self.remote_logging_urls:
+            success = self._send_http_log_with_retry(url, event)
+            
+            with self._lock:
+                if success:
+                    self._remote_success_count += 1
+                    self._servers_status[url] = True
+                    print(f"[Logger] ✓ Event '{event.get('event_type')}' sent to {url}")
+                else:
+                    self._remote_failure_count += 1
+                    self._servers_status[url] = False
+                    print(f"[Logger] ✗ Failed to send '{event.get('event_type')}' to {url}")
 
     def _ensure_executor_available(self) -> None:
         """
@@ -438,7 +609,7 @@ class UserActionLogger:
             self.http_executor.shutdown(wait=True, cancel_futures=False)
 
     def get_session_summary(self) -> Dict[str, Any]:
-        """Get summary of current session."""
+        """Get summary of current session including remote logging status."""
         session_duration = (datetime.now() - self.session_start_time).total_seconds()
 
         # Count events by type
@@ -459,7 +630,8 @@ class UserActionLogger:
             "duration_seconds": session_duration,
             "total_events": sum(event_counts.values()),
             "event_counts": event_counts,
-            "log_file": str(self.log_file)
+            "log_file": str(self.log_file),
+            "remote_logging": self.get_remote_logging_status()
         }
 
 

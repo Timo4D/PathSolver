@@ -89,6 +89,9 @@ class StateManager:
         # Participant ID for evaluation studies
         self.participant_id = reactive.Value(None)
         self.participant_id_set = reactive.Value(False)
+
+        # Logging warning for remote logging failures
+        self.logging_warning = reactive.Value(None)
     
     def save_state(self):
         """Save current state for undo functionality."""

@@ -76,7 +76,7 @@ The dashboard auto-refreshes every 5 seconds.
 
 ### 3. Configure PathSolver to Use Remote Logging
 
-By default, remote logging is **enabled** and points to `http://localhost:5000/api/log`.
+By default, remote logging is **enabled** and points to `http://157.180.50.44:5000/api/log`.
 
 To configure it, set these environment variables before starting PathSolver:
 
@@ -84,7 +84,7 @@ To configure it, set these environment variables before starting PathSolver:
 # Enable remote logging (default: true)
 export ENABLE_REMOTE_LOGGING=true
 
-# URL of the logging server (default: http://localhost:5000/api/log)
+# URL of the logging server (default: http://157.180.50.44:5000/api/log)
 export REMOTE_LOGGING_URL=http://localhost:5000/api/log
 
 # Start PathSolver
