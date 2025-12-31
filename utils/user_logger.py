@@ -77,6 +77,7 @@ class UserActionLogger:
         self._servers_status: Dict[str, bool] = {url: True for url in self.remote_logging_urls}  # Assume available initially
         self._lock = threading.Lock()
         self._last_notification_time: float = 0  # Throttle notifications
+        self._pending_warning_message: Optional[str] = None  # Thread-safe warning for UI to poll
 
         # Warning callback for notifying Shiny app
         self._warning_callback: Optional[Callable[[str], None]] = None
@@ -254,6 +255,10 @@ class UserActionLogger:
         if not self.remote_logging_enabled:
             return
 
+        # Track success/failure for this specific event
+        event_successes = 0
+        event_failures = 0
+
         # Send to ALL servers (for full history on each)
         for url in self.remote_logging_urls:
             success = self._send_http_log_with_retry(url, event)
@@ -262,11 +267,43 @@ class UserActionLogger:
                 if success:
                     self._remote_success_count += 1
                     self._servers_status[url] = True
+                    event_successes += 1
                     print(f"[Logger] ✓ Event '{event.get('event_type')}' sent to {url}")
                 else:
                     self._remote_failure_count += 1
                     self._servers_status[url] = False
+                    event_failures += 1
                     print(f"[Logger] ✗ Failed to send '{event.get('event_type')}' to {url}")
+
+        # If ALL servers failed for this event, notify the user
+        if event_successes == 0 and event_failures > 0:
+            print(f"[Logger] ⚠️ ALL SERVERS FAILED for event '{event.get('event_type')}'")
+            self._log_local_only("remote_logging_failure", {
+                "event_type": event.get("event_type"),
+                "servers_tried": self.remote_logging_urls,
+                "last_error": self._last_remote_error
+            })
+            # Set thread-safe warning for UI to poll (throttled)
+            current_time = time.time()
+            if current_time - self._last_notification_time > 30:
+                self._last_notification_time = current_time
+                with self._lock:
+                    self._pending_warning_message = (
+                        "Unable to send logs to any server. Your data is being saved locally only. "
+                        "Please check your internet connection."
+                    )
+
+    def has_pending_warning(self) -> bool:
+        """Check if there's a pending warning (thread-safe, does NOT clear)."""
+        with self._lock:
+            return self._pending_warning_message is not None
+
+    def get_pending_warning(self) -> Optional[str]:
+        """Get and clear any pending warning message (thread-safe)."""
+        with self._lock:
+            message = self._pending_warning_message
+            self._pending_warning_message = None
+            return message
 
     def _ensure_executor_available(self) -> None:
         """

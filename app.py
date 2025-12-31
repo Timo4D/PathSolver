@@ -59,6 +59,36 @@ def server(input, output, session):
             return participant_id_modal_ui()
         return ui.div()
 
+    # Logging warning modal - polls logger for thread-safe warnings
+    @reactive.poll(lambda: logger.has_pending_warning(), 2.0)
+    def check_logging_warning():
+        """Returns True when there's a pending warning."""
+        return logger.has_pending_warning()
+
+    @reactive.effect
+    def _show_logging_warning_modal():
+        has_warning = check_logging_warning()
+        if has_warning:
+            # Only show if participant modal is already closed (avoid conflicts)
+            if state_manager.participant_id_set.get():
+                # Get and clear the warning message
+                warning = logger.get_pending_warning()
+                if warning:
+                    # Show the modal
+                    m = ui.modal(
+                        ui.div(
+                            ui.tags.i(class_="fa fa-exclamation-triangle", style="font-size: 48px; color: #f0ad4e; margin-bottom: 15px;"),
+                            ui.h4("Logging Connection Issue", style="margin-bottom: 15px;"),
+                            ui.p(warning),
+                            ui.p("Your actions are still being saved locally.", style="color: #666; font-size: 0.9em;"),
+                            style="text-align: center; padding: 20px;"
+                        ),
+                        title=None,
+                        easy_close=True,
+                        footer=ui.modal_button("OK", class_="btn-warning")
+                    )
+                    ui.modal_show(m)
+
     # Dynamic main UI that updates with language changes
     @output
     @render.ui
