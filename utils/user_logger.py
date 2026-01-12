@@ -85,9 +85,9 @@ class UserActionLogger:
         # Thread pool for async HTTP requests (don't block the main app)
         self.http_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="log_http")
 
-        # Check remote connectivity at startup
+        # Check remote connectivity at startup (in background to not block app start)
         if self.remote_logging_enabled and self.remote_logging_urls:
-            self._check_connectivity_and_warn()
+            self.http_executor.submit(self._check_connectivity_and_warn)
 
         # Initialize log file
         self._log_event("session_start", {
