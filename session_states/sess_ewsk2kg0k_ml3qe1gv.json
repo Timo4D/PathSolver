@@ -1,0 +1,196 @@
+{
+  "graph": {
+    "directed": false,
+    "multigraph": false,
+    "graph": {},
+    "nodes": [
+      {
+        "label": "0",
+        "x": 151.9693819997027,
+        "y": 175.47256883730566,
+        "id": 0
+      },
+      {
+        "label": "1",
+        "x": -20.286102766836475,
+        "y": 159.6268577066205,
+        "id": 1
+      },
+      {
+        "label": "2",
+        "x": -200.0,
+        "y": 140.36494336474868,
+        "id": 2
+      },
+      {
+        "label": "3",
+        "x": 183.46975658306516,
+        "y": 23.84926849399605,
+        "id": 3
+      },
+      {
+        "label": "4",
+        "x": -14.27983948926806,
+        "y": 14.3252069860932,
+        "id": 4
+      },
+      {
+        "label": "5",
+        "x": -176.77437296216635,
+        "y": -29.27621146990175,
+        "id": 5
+      },
+      {
+        "label": "6",
+        "x": 196.11418642483187,
+        "y": -124.18215442994236,
+        "id": 6
+      },
+      {
+        "label": "7",
+        "x": 31.459667589905145,
+        "y": -178.94063843341084,
+        "id": 7
+      },
+      {
+        "label": "8",
+        "x": -151.67267737923413,
+        "y": -181.23984105550866,
+        "id": 8
+      }
+    ],
+    "links": [
+      {
+        "weight": 10,
+        "source": 0,
+        "target": 1
+      },
+      {
+        "weight": 12,
+        "source": 0,
+        "target": 3
+      },
+      {
+        "weight": 8,
+        "source": 1,
+        "target": 2
+      },
+      {
+        "weight": 15,
+        "source": 1,
+        "target": 4
+      },
+      {
+        "weight": 9,
+        "source": 2,
+        "target": 5
+      },
+      {
+        "weight": 7,
+        "source": 3,
+        "target": 4
+      },
+      {
+        "weight": 14,
+        "source": 3,
+        "target": 6
+      },
+      {
+        "weight": 11,
+        "source": 4,
+        "target": 5
+      },
+      {
+        "weight": 6,
+        "source": 4,
+        "target": 7
+      },
+      {
+        "weight": 13,
+        "source": 5,
+        "target": 8
+      },
+      {
+        "weight": 10,
+        "source": 6,
+        "target": 7
+      },
+      {
+        "weight": 8,
+        "source": 7,
+        "target": 8
+      }
+    ]
+  },
+  "distances_df": [
+    {
+      "Cities": "0",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "1",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "2",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "3",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "4",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "5",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "6",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "7",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "8",
+      "Cost": Infinity,
+      "Previous": NaN
+    }
+  ],
+  "solution": null,
+  "step_counter": 0,
+  "global_step_counter": 0,
+  "current_node": null,
+  "current_edges": [],
+  "nodes_visited": [],
+  "game_score": 0,
+  "consecutive_correct": 0,
+  "total_predictions": 0,
+  "correct_predictions": 0,
+  "game_difficulty": "easy",
+  "current_task_index": 1,
+  "completed_tasks": [
+    1
+  ],
+  "graph_font_size": 16,
+  "current_language": "en",
+  "participant_id": "test",
+  "participant_id_set": true,
+  "_metadata": {
+    "session_id": "sess_ewsk2kg0k_ml3qe1gv",
+    "saved_at": "2026-02-01T13:43:14.476872",
+    "version": "1.0"
+  }
+}

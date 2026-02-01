@@ -10,14 +10,14 @@ from constants import (
 )
 from localization import _
 from utils.graph_utils import dijkstra_solution
-from utils.user_logger import get_logger
 
 
 class DijkstraStepHandler:
     """Handles the step-by-step execution of Dijkstra's algorithm."""
     
-    def __init__(self, state_manager):
+    def __init__(self, state_manager, logger=None):
         self.state = state_manager
+        self.logger = logger
     
     def handle_next_step(self, input):
         """Handle the next step in the algorithm."""
@@ -36,21 +36,21 @@ class DijkstraStepHandler:
             self.state.start_node_error.set(False)
             self.state.target_node_error.set(False)
 
-        # Log algorithm step
-        logger = get_logger()
-        step_names = {
-            STEP_INITIALIZE: "initialize",
-            STEP_VISIT_NODES: "visit_neighbors",
-            STEP_FIND_NEXT_NODE: "find_next_node",
-            STEP_FINISH: "finish",
-            STEP_SHOW_SOLUTION: "show_solution"
-        }
-        logger.log_algorithm_step(
-            step_number=step,
-            step_name=step_names.get(step, "unknown"),
-            current_node=str(self.state.current_node.get()) if self.state.current_node.get() else None,
-            nodes_visited=[str(n) for n in self.state.nodes_visited.get()]
-        )
+        # Log algorithm step if logger is available
+        if self.logger:
+            step_names = {
+                STEP_INITIALIZE: "initialize",
+                STEP_VISIT_NODES: "visit_neighbors",
+                STEP_FIND_NEXT_NODE: "find_next_node",
+                STEP_FINISH: "finish",
+                STEP_SHOW_SOLUTION: "show_solution"
+            }
+            self.logger.log_algorithm_step(
+                step_number=step,
+                step_name=step_names.get(step, "unknown"),
+                current_node=str(self.state.current_node.get()) if self.state.current_node.get() else None,
+                nodes_visited=[str(n) for n in self.state.nodes_visited.get()]
+            )
 
         if step == STEP_INITIALIZE:
             self.initialize_step(input, df, G)
@@ -169,9 +169,9 @@ class DijkstraStepHandler:
             self.state.target_node_error.set(False)
 
             # Log algorithm start
-            logger = get_logger()
-            graph_type = getattr(self.state, 'current_graph_type', 'unknown')
-            logger.log_algorithm_start(str(start_node), str(target_node), graph_type)
+            if self.logger:
+                graph_type = getattr(self.state, 'current_graph_type', 'unknown')
+                self.logger.log_algorithm_start(str(start_node), str(target_node), graph_type)
     
     def visit_neighbors(self, df, G):
         """Visit and update distances to neighbors."""
@@ -398,14 +398,14 @@ class DijkstraStepHandler:
         self.state.prediction_feedback_message.set(feedback_msg)
 
         # Log the prediction
-        logger = get_logger()
-        logger.log_prediction_made(
-            predicted_node=str(predicted_node),
-            correct_node=str(correct_node),
-            is_correct=is_correct,
-            current_score=self.state.game_score.get(),
-            consecutive_correct=self.state.consecutive_correct.get()
-        )
+        if self.logger:
+            self.logger.log_prediction_made(
+                predicted_node=str(predicted_node),
+                correct_node=str(correct_node),
+                is_correct=is_correct,
+                current_score=self.state.game_score.get(),
+                consecutive_correct=self.state.consecutive_correct.get()
+            )
 
         # Clear prediction candidates to remove highlighting
         self.state.prediction_candidates.set([])
@@ -486,12 +486,12 @@ class DijkstraStepHandler:
         is_correct = user_solution == correct_solution
 
         # Log quiz submission
-        logger = get_logger()
-        logger.log_quiz_submission(
-            submitted_path=",".join(map(str, user_solution)),
-            correct_path=",".join(map(str, correct_solution)),
-            is_correct=is_correct
-        )
+        if self.logger:
+            self.logger.log_quiz_submission(
+                submitted_path=",".join(map(str, user_solution)),
+                correct_path=",".join(map(str, correct_solution)),
+                is_correct=is_correct
+            )
 
         if is_correct:
             self.state.step_counter.set(STEP_SHOW_SOLUTION)
@@ -508,11 +508,11 @@ class DijkstraStepHandler:
                 has_next = self.state.advance_to_next_task()
 
                 # Log task completion
-                logger = get_logger()
-                logger.log_task_completed(
-                    task_index=completed_task_number,
-                    success=True
-                )
+                if self.logger:
+                    self.logger.log_task_completed(
+                        task_index=completed_task_number,
+                        success=True
+                    )
 
                 if has_next:
                     # Show success message with next task info
@@ -522,11 +522,12 @@ class DijkstraStepHandler:
                     )
 
                     # Log that new task started
-                    logger.log_task_started(
-                        task_index=next_task.get('task_number'),
-                        task_description=next_task.get('description'),
-                        graph_type=next_task.get('graph_type')
-                    )
+                    if self.logger:
+                        self.logger.log_task_started(
+                            task_index=next_task.get('task_number'),
+                            task_description=next_task.get('description'),
+                            graph_type=next_task.get('graph_type')
+                        )
                 else:
                     # All tasks completed
                     self.state.step_explanation.set(

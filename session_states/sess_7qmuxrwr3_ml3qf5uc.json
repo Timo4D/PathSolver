@@ -1,0 +1,104 @@
+{
+  "graph": {
+    "directed": false,
+    "multigraph": false,
+    "graph": {},
+    "nodes": [
+      {
+        "label": "A",
+        "x": 191.8630830747798,
+        "y": 144.07226207471217,
+        "id": 0
+      },
+      {
+        "label": "B",
+        "x": 60.574514898757386,
+        "y": -141.82706402516385,
+        "id": 1
+      },
+      {
+        "label": "C",
+        "x": -52.43759797353713,
+        "y": 120.48271995509893,
+        "id": 2
+      },
+      {
+        "label": "D",
+        "x": -200.0,
+        "y": -122.72791800464726,
+        "id": 3
+      }
+    ],
+    "links": [
+      {
+        "weight": 5,
+        "source": 0,
+        "target": 1
+      },
+      {
+        "weight": 10,
+        "source": 0,
+        "target": 2
+      },
+      {
+        "weight": 3,
+        "source": 1,
+        "target": 2
+      },
+      {
+        "weight": 8,
+        "source": 1,
+        "target": 3
+      },
+      {
+        "weight": 7,
+        "source": 2,
+        "target": 3
+      }
+    ]
+  },
+  "distances_df": [
+    {
+      "Cities": "A",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "B",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "C",
+      "Cost": Infinity,
+      "Previous": NaN
+    },
+    {
+      "Cities": "D",
+      "Cost": Infinity,
+      "Previous": NaN
+    }
+  ],
+  "solution": null,
+  "step_counter": 0,
+  "global_step_counter": 0,
+  "current_node": null,
+  "current_edges": [],
+  "nodes_visited": [],
+  "game_score": 0,
+  "consecutive_correct": 0,
+  "total_predictions": 0,
+  "correct_predictions": 0,
+  "game_difficulty": "easy",
+  "current_task_index": 0,
+  "completed_tasks": [],
+  "graph_font_size": 16,
+  "current_language": "en",
+  "participant_id": "test1",
+  "participant_id_set": true,
+  "_metadata": {
+    "session_id": "sess_7qmuxrwr3_ml3qf5uc",
+    "saved_at": "2026-02-01T13:43:42.766671",
+    "version": "1.0"
+  }
+}

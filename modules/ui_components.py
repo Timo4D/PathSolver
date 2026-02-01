@@ -140,10 +140,12 @@ def algorithm_explanation_ui():
     )
 
 
-def game_difficulty_selector_ui():
-    """Difficulty selector for prediction game mode."""
-    from modules.state_manager import state_manager
+def game_difficulty_selector_ui(state_manager):
+    """Difficulty selector for prediction game mode.
     
+    Args:
+        state_manager: Session-scoped StateManager instance
+    """
     # Only show if game feature is enabled in settings
     if not state_manager.game_enabled():
         return ui.div()
@@ -191,10 +193,12 @@ def game_difficulty_selector_ui():
         )
 
 
-def prediction_game_toggle_ui():
-    """Toggle for enabling prediction game mode - only shown if enabled in settings."""
-    from modules.state_manager import state_manager
+def prediction_game_toggle_ui(state_manager):
+    """Toggle for enabling prediction game mode - only shown if enabled in settings.
     
+    Args:
+        state_manager: Session-scoped StateManager instance
+    """
     if not state_manager.game_enabled():
         return ui.div()  # Return empty div if game is disabled in settings
     
@@ -218,10 +222,12 @@ def prediction_game_toggle_ui():
     )
 
 
-def solution_quiz_toggle_ui():
-    """Toggle for enabling solution quiz - only shown if enabled in settings."""
-    from modules.state_manager import state_manager
+def solution_quiz_toggle_ui(state_manager):
+    """Toggle for enabling solution quiz - only shown if enabled in settings.
     
+    Args:
+        state_manager: Session-scoped StateManager instance
+    """
     if not state_manager.solution_quiz_enabled.get():
         return ui.div()  # Return empty div if quiz is disabled in settings
     

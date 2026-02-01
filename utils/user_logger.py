@@ -34,20 +34,16 @@ class NumpyEncoder(json.JSONEncoder):
 
 
 class UserActionLogger:
-    """Singleton logger for tracking user actions throughout the application."""
+    """Logger for tracking user actions throughout the application.
+    
+    Now session-scoped instead of singleton to support multi-user mode.
+    Each user session gets its own logger instance with isolated state.
+    """
 
-    _instance = None
-
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(UserActionLogger, cls).__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-
-    def __init__(self):
-        if self._initialized:
-            return
-
+    def __init__(self, state_manager=None):
+        # Store reference to session-scoped state manager
+        self._state_manager = state_manager
+        
         self.log_dir = Path("evaluation_logs")
         self.log_dir.mkdir(exist_ok=True)
 
@@ -97,7 +93,6 @@ class UserActionLogger:
             "remote_logging_enabled": self.remote_logging_enabled
         })
 
-        self._initialized = True
 
     def set_warning_callback(self, callback: Callable[[str], None]) -> None:
         """
@@ -111,12 +106,12 @@ class UserActionLogger:
 
     def _notify_warning(self, message: str) -> None:
         """Send warning to state manager for UI to display."""
-        # Use state_manager's reactive value for thread-safe notification
-        try:
-            from modules.state_manager import state_manager
-            state_manager.logging_warning.set(message)
-        except Exception:
-            pass  # State manager not available, just log to console
+        # Use session-scoped state_manager if available
+        if self._state_manager:
+            try:
+                self._state_manager.logging_warning.set(message)
+            except Exception:
+                pass  # State manager not available or error
         
         # Also call callback if registered
         if self._warning_callback:
@@ -321,25 +316,25 @@ class UserActionLogger:
             event_type: Type of event (e.g., "algorithm_step", "prediction_made")
             data: Dictionary containing event-specific data
         """
-        # Get participant ID and task info from state manager if available
+        # Get participant ID and task info from session-scoped state manager
         participant_id = None
         task_mode_active = False
         current_task_number = None
         current_task_description = None
 
-        try:
-            from modules.state_manager import state_manager
-            participant_id = state_manager.get_participant_id()
+        if self._state_manager:
+            try:
+                participant_id = self._state_manager.get_participant_id()
 
-            # Get current task information if in task mode
-            if state_manager.is_task_mode_active():
-                task_mode_active = True
-                current_task = state_manager.get_current_task()
-                if current_task:
-                    current_task_number = current_task.get('task_number')
-                    current_task_description = current_task.get('description')
-        except Exception:
-            pass  # If state manager not available, proceed without extra info
+                # Get current task information if in task mode
+                if self._state_manager.is_task_mode_active():
+                    task_mode_active = True
+                    current_task = self._state_manager.get_current_task()
+                    if current_task:
+                        current_task_number = current_task.get('task_number')
+                        current_task_description = current_task.get('description')
+            except Exception:
+                pass  # If state manager has issues, proceed without extra info
 
         event = {
             "timestamp": datetime.now().isoformat(),
@@ -672,13 +667,47 @@ class UserActionLogger:
         }
 
 
-# Global logger instance
-_logger = None
+def get_session_logger(session, state_manager=None):
+    """
+    Get or create a UserActionLogger for the current Shiny session.
+    
+    This ensures each user session has its own isolated logger instance.
+    
+    Args:
+        session: The Shiny session object
+        state_manager: Optional session-scoped StateManager instance
+        
+    Returns:
+        UserActionLogger: A logger instance specific to this session
+    """
+    # Initialize user_data dict if it doesn't exist
+    if not hasattr(session, 'user_data') or session.user_data is None:
+        session.user_data = {}
+    
+    # Create logger for this session if not exists
+    if 'logger' not in session.user_data:
+        session.user_data['logger'] = UserActionLogger(state_manager=state_manager)
+    
+    return session.user_data['logger']
+
+
+# Legacy global logger for backwards compatibility during migration
+# This will be used if get_logger() is called without a session context
+_legacy_logger = None
 
 
 def get_logger() -> UserActionLogger:
-    """Get or create the global logger instance."""
-    global _logger
-    if _logger is None:
-        _logger = UserActionLogger()
-    return _logger
+    """
+    Legacy function to get a logger instance.
+    
+    For session-scoped logging, use get_session_logger(session, state_manager) instead.
+    This function is kept for backwards compatibility with code that doesn't have
+    access to the session object.
+    
+    Returns:
+        UserActionLogger: A shared logger instance (not session-scoped)
+    """
+    global _legacy_logger
+    if _legacy_logger is None:
+        _legacy_logger = UserActionLogger()
+    return _legacy_logger

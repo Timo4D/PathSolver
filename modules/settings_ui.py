@@ -1,9 +1,9 @@
 """Settings UI module for PathSolver application."""
 
 from shiny import ui, render, reactive, req
-from modules.state_manager import state_manager
+# Note: state_manager is now passed as a parameter to settings_ui_server for session isolation
 from localization import _, get_available_languages
-from utils.user_logger import get_logger
+from utils.user_logger import get_session_logger
 
 
 def settings_ui():
@@ -31,8 +31,17 @@ def settings_ui():
     )
 
 
-def settings_ui_server(input, output, session):
-    """Server logic for the settings UI."""
+def settings_ui_server(input, output, session, state_manager):
+    """Server logic for the settings UI.
+    
+    Args:
+        input: Shiny input object
+        output: Shiny output object
+        session: Shiny session object
+        state_manager: Session-scoped StateManager instance
+    """
+    # Get session-scoped logger (available via closure to all inner functions)
+    logger = get_session_logger(session, state_manager)
     
     @output
     @render.ui
@@ -274,7 +283,6 @@ def settings_ui_server(input, output, session):
             success = state_manager.authenticate_settings(password)
 
             # Log authentication attempt
-            logger = get_logger()
             logger.log_settings_unlocked(password_correct=success)
 
             if success:
@@ -436,7 +444,6 @@ def settings_ui_server(input, output, session):
             current_lang = state_manager.current_language()
             if language != current_lang:  # Only update if actually changed
                 # Log language change
-                logger = get_logger()
                 logger.log_language_changed(current_lang, language)
 
                 if state_manager.update_language(language):
@@ -502,7 +509,6 @@ def settings_ui_server(input, output, session):
             current_size = state_manager.graph_font_size()
             if font_size != current_size:  # Only update if actually changed
                 # Log font size change
-                logger = get_logger()
                 logger.log_font_size_changed(current_size, font_size)
 
                 state_manager.update_graph_font_size(font_size)

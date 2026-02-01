@@ -1,7 +1,7 @@
 """Participant ID entry module for evaluation studies."""
 
 from shiny import ui, render, reactive
-from modules.state_manager import state_manager
+# Note: state_manager is now passed as a parameter to participant_id_modal_server for session isolation
 
 
 def participant_id_modal_ui():
@@ -73,8 +73,15 @@ def participant_id_modal_ui():
     )
 
 
-def participant_id_modal_server(input, output, session):
-    """Server logic for participant ID modal."""
+def participant_id_modal_server(input, output, session, state_manager):
+    """Server logic for participant ID modal.
+    
+    Args:
+        input: Shiny input object
+        output: Shiny output object
+        session: Shiny session object
+        state_manager: Session-scoped StateManager instance
+    """
 
     @output
     @render.ui

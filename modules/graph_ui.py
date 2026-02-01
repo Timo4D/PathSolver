@@ -8,7 +8,7 @@ from shiny.types import FileInfo
 from constants import DEFAULT_EDGE_LIST_PATH, STEP_FINISH
 from constants import DEFAULT_START_NODE, DEFAULT_TARGET_NODE
 from localization import _
-from modules.state_manager import state_manager
+# Note: state_manager is now passed as a parameter to graph_ui_server for session isolation
 from modules.ui_components import (
     main_ui, GraphType, create_progress_bar, create_explanation_ui,
     render_graph_generator_settings, render_error_tooltip, render_distances_table,
@@ -23,7 +23,7 @@ from utils.graph_generators import (
     generate_simple_path, generate_grid_graph, generate_european_cities
 )
 from utils.graph_utils import plot_graph, convert_graph_to_cytoscape, get_cytoscape_styles, get_cytoscape_layout, convert_graph_to_edgelist, convert_graph_to_csv
-from utils.user_logger import get_logger
+from utils.user_logger import get_session_logger
 
 
 def graph_ui():
@@ -31,10 +31,58 @@ def graph_ui():
     return main_ui()
 
 
-def graph_ui_server(input, output, session):
-    """Main server logic for the graph UI."""
-    # Initialize algorithm handler
-    algorithm_handler = DijkstraStepHandler(state_manager)
+def graph_ui_server(input, output, session, state_manager):
+    """Main server logic for the graph UI.
+    
+    Args:
+        input: Shiny input object
+        output: Shiny output object
+        session: Shiny session object
+        state_manager: Session-scoped StateManager instance
+    """
+    # Get session-scoped logger (available via closure to all inner functions)
+    logger = get_session_logger(session, state_manager)
+    
+    # Initialize algorithm handler with session-scoped state manager and logger
+    algorithm_handler = DijkstraStepHandler(state_manager, logger)
+
+    # Helper function to update graph based on selection (needs state_manager in closure)
+    def _update_graph_based_on_selection_inner():
+        """Update graph based on user selection."""
+        # Skip if in task mode - graph is controlled by tasks
+        if state_manager.is_task_mode_active():
+            return
+
+        if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
+            n = input.n_slider()
+            k = input.k_slider()
+
+            # Validate ring topology constraints
+            if k >= n:
+                state_manager.step_explanation.set(
+                    TagList(_("select_k_not_smaller_n"))
+                )
+            else:
+                graph = generate_random_graph(n, k, input.p_slider())
+                state_manager.graph.set(graph)
+                logger.log_graph_selected("random", {"n": n, "k": k, "p": input.p_slider()})
+        elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
+            state_manager.graph.set(generate_koot_example())
+            logger.log_graph_selected("koot_example")
+        elif input.selectize_graph() == GraphType.EDGE_LIST.value:
+            edge_list_input = input.edge_list_input()
+            if isinstance(edge_list_input, str):
+                result = generate_from_edge_list(input.edge_list_input())
+                if isinstance(result, str):
+                    state_manager.invalid_edge_list.set(True)
+                    state_manager.step_explanation.set(TagList(result))
+                else:
+                    state_manager.invalid_edge_list.set(False)
+                    state_manager.graph.set(result)
+                    logger.log_graph_selected("edge_list")
+            else:
+                state_manager.graph.set(edge_list_input)
+                logger.log_graph_selected("edge_list")
 
     # Load task graph on initialization if in task mode
     @reactive.Effect
@@ -45,7 +93,6 @@ def graph_ui_server(input, output, session):
             task = state_manager.get_current_task()
             if task:
                 # Log task start (when task changes or task mode is enabled)
-                logger = get_logger()
                 logger.log_task_started(
                     task_index=task.get('task_number'),
                     task_description=task.get('description'),
@@ -293,7 +340,7 @@ def graph_ui_server(input, output, session):
 
     @reactive.Effect
     def update_graph():
-        _update_graph_based_on_selection(input)
+        _update_graph_based_on_selection_inner()
 
     @output
     @render.data_frame
@@ -366,7 +413,7 @@ def graph_ui_server(input, output, session):
     def dynamic_game_toggle():
         """Show/hide game toggle based on settings."""
         from modules.ui_components import prediction_game_toggle_ui
-        return prediction_game_toggle_ui()
+        return prediction_game_toggle_ui(state_manager)
 
     @output
     @render.ui
@@ -374,7 +421,7 @@ def graph_ui_server(input, output, session):
     def dynamic_solution_quiz_toggle():
         """Show/hide solution quiz toggle based on settings."""
         from modules.ui_components import solution_quiz_toggle_ui
-        return solution_quiz_toggle_ui()
+        return solution_quiz_toggle_ui(state_manager)
     
     @output
     @render.ui
@@ -395,7 +442,7 @@ def graph_ui_server(input, output, session):
         if not game_active:
             return ui.div()
         
-        return game_difficulty_selector_ui()
+        return game_difficulty_selector_ui(state_manager)
 
     @output
     @render.ui
@@ -469,7 +516,6 @@ def graph_ui_server(input, output, session):
     def toggle_game_mode():
         # Only allow toggle if game feature is enabled in settings
         if state_manager.game_enabled():
-            logger = get_logger()
             logger.log_game_toggled(enabled=input.game_enabled())
 
             if input.game_enabled():
@@ -486,7 +532,6 @@ def graph_ui_server(input, output, session):
     @reactive.event(input.solution_quiz_enabled)
     def toggle_solution_quiz():
         # Log solution quiz toggle
-        logger = get_logger()
         logger.log_solution_quiz_toggled(enabled=input.solution_quiz_enabled())
 
     @reactive.Effect
@@ -499,7 +544,6 @@ def graph_ui_server(input, output, session):
             old_difficulty = state_manager.game_difficulty.get()
             new_difficulty = input.game_difficulty()
             if old_difficulty != new_difficulty:
-                logger = get_logger()
                 logger.log_difficulty_changed(old_difficulty, new_difficulty)
 
             # Only allow user to change difficulty if not forced by instructor
@@ -660,7 +704,6 @@ def graph_ui_server(input, output, session):
             graph = state_manager.graph.get()
             if graph and node_id in graph.nodes():
                 # Log the action
-                logger = get_logger()
                 logger.log_start_node_set(str(node_id), method="context_menu")
 
                 # Update the start node input programmatically
@@ -682,7 +725,6 @@ def graph_ui_server(input, output, session):
             graph = state_manager.graph.get()
             if graph and node_id in graph.nodes():
                 # Log the action
-                logger = get_logger()
                 logger.log_target_node_set(str(node_id), method="context_menu")
 
                 # Update the target node input programmatically
@@ -711,7 +753,6 @@ def graph_ui_server(input, output, session):
                     return
                 
                 # Log the action
-                logger = get_logger()
                 logger.log_node_deleted(str(node_id))
 
                 # Remove the node and all its edges from the NetworkX graph
@@ -761,7 +802,6 @@ def graph_ui_server(input, output, session):
                     return
 
                 # Log the action
-                logger = get_logger()
                 logger.log_edge_deleted(str(source_id), str(target_id))
 
                 # Update the graph in state manager
@@ -801,7 +841,6 @@ def graph_ui_server(input, output, session):
                 print(f"Debug: Creating new node with ID: {new_node_id} at position ({data['x']}, {data['y']})")  # Debug output
 
                 # Log the action
-                logger = get_logger()
                 logger.log_node_added(str(new_node_id), position={"x": data["x"], "y": data["y"]})
 
                 # Create a copy of the graph and add the new node with position
@@ -860,7 +899,6 @@ def graph_ui_server(input, output, session):
                     return
                 
                 # Log the action
-                logger = get_logger()
                 logger.log_edge_added(str(source_id), str(target_id), weight=1)
 
                 # Create a copy of the graph and add the new edge
@@ -898,7 +936,6 @@ def graph_ui_server(input, output, session):
                 old_weight = graph[source_id][target_id]['weight']
 
                 # Log the action
-                logger = get_logger()
                 logger.log_edge_weight_updated(str(source_id), str(target_id), old_weight, new_weight)
 
                 # Create a copy of the graph and update the edge weight
@@ -994,41 +1031,5 @@ def graph_ui_server(input, output, session):
         """)
 
 
-def _update_graph_based_on_selection(input):
-    """Update graph based on user selection."""
-    # Skip if in task mode - graph is controlled by tasks
-    if state_manager.is_task_mode_active():
-        return
-
-    logger = get_logger()
-
-    if input.selectize_graph() == GraphType.RANDOM_GRAPH.value:
-        n = input.n_slider()
-        k = input.k_slider()
-
-        # Validate ring topology constraints
-        if k >= n:
-            state_manager.step_explanation.set(
-                TagList(_("select_k_not_smaller_n"))
-            )
-        else:
-            graph = generate_random_graph(n, k, input.p_slider())
-            state_manager.graph.set(graph)
-            logger.log_graph_selected("random", {"n": n, "k": k, "p": input.p_slider()})
-    elif input.selectize_graph() == GraphType.KOOT_EXAMPLE_DEUTSCHLAND.value:
-        state_manager.graph.set(generate_koot_example())
-        logger.log_graph_selected("koot_example")
-    elif input.selectize_graph() == GraphType.EDGE_LIST.value:
-        edge_list_input = input.edge_list_input()
-        if isinstance(edge_list_input, str):
-            result = generate_from_edge_list(input.edge_list_input())
-            if isinstance(result, str):
-                state_manager.invalid_edge_list.set(True)
-                state_manager.step_explanation.set(TagList(result))
-            else:
-                state_manager.invalid_edge_list.set(False)
-                state_manager.graph.set(result)
-                logger.log_graph_selected("edge_list")
-        else:
-            state_manager.graph.set(edge_list_input)
-            logger.log_graph_selected("edge_list")
+# _update_graph_based_on_selection is now defined inside graph_ui_server as _update_graph_based_on_selection_inner
+# to have access to the session-scoped state_manager

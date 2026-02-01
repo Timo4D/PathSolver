@@ -6,6 +6,7 @@ import hashlib
 import secrets
 import pandas as pd
 import networkx as nx
+from networkx.readwrite import json_graph
 from shiny import reactive
 from htmltools import TagList
 
@@ -177,6 +178,138 @@ class StateManager:
         self.waiting_for_prediction.set(False)
         
         return is_correct
+    
+    def to_dict(self) -> dict:
+        """Serialize restorable state to dictionary for persistence.
+        
+        Returns:
+            Dictionary containing all persistable state
+        """
+        # Serialize graph using networkx json_graph
+        graph = self.graph.get()
+        graph_data = None
+        if graph is not None and len(graph.nodes()) > 0:
+            graph_data = json_graph.node_link_data(graph)
+        
+        # Serialize distances DataFrame
+        df = self.distances_df.get()
+        df_data = None
+        if df is not None and not df.empty:
+            df_data = df.to_dict(orient='records')
+        
+        # Serialize solution path
+        solution = self.solution.get()
+        solution_data = list(solution) if solution else None
+        
+        return {
+            # Graph state
+            "graph": graph_data,
+            "distances_df": df_data,
+            "solution": solution_data,
+            
+            # Algorithm progress
+            "step_counter": self.step_counter.get(),
+            "global_step_counter": self.global_step_counter.get(),
+            "current_node": self.current_node.get(),
+            "current_edges": self.current_edges.get(),
+            "nodes_visited": self.nodes_visited.get(),
+            
+            # Game state
+            "game_score": self.game_score.get(),
+            "consecutive_correct": self.consecutive_correct.get(),
+            "total_predictions": self.total_predictions.get(),
+            "correct_predictions": self.correct_predictions.get(),
+            "game_difficulty": self.game_difficulty.get(),
+            
+            # Task progress
+            "current_task_index": self.current_task_index.get(),
+            "completed_tasks": self.completed_tasks.get(),
+            
+            # User preferences
+            "graph_font_size": self.graph_font_size.get(),
+            "current_language": self.current_language.get(),
+            
+            # Study data
+            "participant_id": self.participant_id.get(),
+            "participant_id_set": self.participant_id_set.get(),
+        }
+    
+    def from_dict(self, data: dict) -> bool:
+        """Restore state from dictionary.
+        
+        Args:
+            data: Dictionary of saved state (from to_dict)
+            
+        Returns:
+            True if restoration was successful
+        """
+        try:
+            # Restore graph
+            graph_data = data.get("graph")
+            if graph_data:
+                graph = json_graph.node_link_graph(graph_data)
+                self.graph.set(graph)
+            
+            # Restore distances DataFrame
+            df_data = data.get("distances_df")
+            if df_data:
+                df = pd.DataFrame(df_data)
+                self.distances_df.set(df)
+            
+            # Restore solution
+            solution_data = data.get("solution")
+            if solution_data:
+                self.solution.set(solution_data)
+            
+            # Restore algorithm progress
+            if "step_counter" in data:
+                self.step_counter.set(data["step_counter"])
+            if "global_step_counter" in data:
+                self.global_step_counter.set(data["global_step_counter"])
+            if "current_node" in data:
+                self.current_node.set(data["current_node"])
+            if "current_edges" in data:
+                self.current_edges.set(data["current_edges"])
+            if "nodes_visited" in data:
+                self.nodes_visited.set(data["nodes_visited"])
+            
+            # Restore game state
+            if "game_score" in data:
+                self.game_score.set(data["game_score"])
+            if "consecutive_correct" in data:
+                self.consecutive_correct.set(data["consecutive_correct"])
+            if "total_predictions" in data:
+                self.total_predictions.set(data["total_predictions"])
+            if "correct_predictions" in data:
+                self.correct_predictions.set(data["correct_predictions"])
+            if "game_difficulty" in data:
+                self.game_difficulty.set(data["game_difficulty"])
+            
+            # Restore task progress
+            if "current_task_index" in data:
+                self.current_task_index.set(data["current_task_index"])
+            if "completed_tasks" in data:
+                self.completed_tasks.set(data["completed_tasks"])
+            
+            # Restore user preferences
+            if "graph_font_size" in data:
+                self.graph_font_size.set(data["graph_font_size"])
+            if "current_language" in data:
+                self.current_language.set(data["current_language"])
+                set_language(data["current_language"])
+            
+            # Restore study data
+            if "participant_id" in data:
+                self.participant_id.set(data["participant_id"])
+            if "participant_id_set" in data:
+                self.participant_id_set.set(data["participant_id_set"])
+            
+            print("[StateManager] Session state restored successfully")
+            return True
+            
+        except Exception as e:
+            print(f"[StateManager] Error restoring state: {e}")
+            return False
     
     def _load_config(self):
         """Load configuration from config.json."""
@@ -483,5 +616,30 @@ class StateManager:
             return False
 
 
-# Global state manager instance
+def get_session_state_manager(session):
+    """
+    Get or create a StateManager for the current Shiny session.
+    
+    This ensures each user session has its own isolated state, allowing
+    multiple users to use the application simultaneously without interference.
+    
+    Args:
+        session: The Shiny session object
+        
+    Returns:
+        StateManager: A StateManager instance specific to this session
+    """
+    # Initialize user_data dict if it doesn't exist
+    if not hasattr(session, 'user_data') or session.user_data is None:
+        session.user_data = {}
+    
+    # Create StateManager for this session if not exists
+    if 'state_manager' not in session.user_data:
+        session.user_data['state_manager'] = StateManager()
+    
+    return session.user_data['state_manager']
+
+
+# Legacy global state manager for backwards compatibility during migration
+# This will be removed once all modules are updated to use get_session_state_manager
 state_manager = StateManager()
