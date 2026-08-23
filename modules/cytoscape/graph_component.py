@@ -1,9 +1,12 @@
 from typing import Any, Dict
+from pathlib import Path
 
 from htmltools import HTMLDependency
 from shiny import ui
 from shiny.module import resolve_id
 from shiny.render.renderer import Renderer
+
+_HERE = Path(__file__).resolve().parent
 
 # Cytoscape.js core library
 cytoscape_core_dep = HTMLDependency(
@@ -25,7 +28,7 @@ cytoscape_cxtmenu_dep = HTMLDependency(
 cytoscape_dep = HTMLDependency(
     name="cytoscape",
     version="3.33.0",
-    source={"subdir": "modules/cytoscape"},
+    source={"subdir": str(_HERE)},
     script={"src": "graph_component.js"},
 )
 
